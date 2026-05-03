@@ -277,9 +277,3 @@ Roteiro (~5 minutos):
 6. Dados salvos no Oracle
 
 ---
-
-## 👨‍💻 Desenvolvido por
-
-**Moises Waideman**  
-2TDS — FIAP 2026  
-Challenge: Clyvo Vet — PetTrack
