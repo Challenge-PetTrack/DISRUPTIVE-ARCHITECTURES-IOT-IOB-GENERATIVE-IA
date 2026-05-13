@@ -21,22 +21,22 @@ A proposta transforma o cuidado veterinário de **reativo para preventivo** — 
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│                    COLLAR IOT                        │
+│                    COLLAR IOT                       │
 │                                                     │
 │  ESP32 (Wokwi)                                      │
 │  Temp (GPIO 34) + Atividade (GPIO 35)               │
 │       │ MQTT TLS porta 8883                         │
 │       ▼                                             │
 │  HiveMQ Cloud ──────► Node-RED                      │
-│                           │ OpenWeatherMap API       │
-│                           │ Dashboard em tempo real  │
-│                           │ HTTP POST                │
+│                           │ OpenWeatherMap API      │
+│                           │ Dashboard em tempo real │
+│                           │ HTTP POST               │
 │                           ▼                         │
-│                      Spring Boot ──► Oracle DB       │
+│                      Spring Boot ──► Oracle DB      │
 └─────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────┐
-│              VISÃO COMPUTACIONAL — BCS               │
+│              VISÃO COMPUTACIONAL — BCS              │
 │                                                     │
 │  App Tutor/Vet                                      │
 │  Envia foto do pet                                  │
@@ -263,6 +263,15 @@ CREATE TABLE tb_bcs_historico (
 | Disrupção e originalidade | 10pts | Health score + BCS veterinário por foto |
 
 ---
+
+## 👥 Integrantes
+
+Nome | RM
+--- | ---
+Thiago Rodrigues da Mota | 563650
+Moisés Waidemann Molinillo Júnior | 563719
+Gabriel Sbrana Campos | 565849
+Richard Freitas | 566127
 
 ## 🎬 Vídeo Demonstrativo
 
