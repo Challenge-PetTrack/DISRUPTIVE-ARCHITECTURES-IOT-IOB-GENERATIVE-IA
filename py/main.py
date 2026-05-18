@@ -6,6 +6,7 @@ import os
 import json
 import requests
 
+# Carrega o .env
 load_dotenv()
 
 # ===== CONFIG =====
@@ -16,9 +17,8 @@ app = FastAPI(
 )
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-SPRING_BOOT_URL = os.getenv("SPRING_BOOT_URL")
+SPRING_BOOT_URL = os.getenv("SPRING_BOOT_URL", "http://localhost:8080")
 
-# FIX: client nao estava instanciado
 client = OpenAI(api_key=OPENAI_API_KEY)
 
 # ===== MODELS =====
@@ -38,20 +38,16 @@ class BCSResponse(BaseModel):
     salvo_no_banco: bool = False
 
 # ===== SALVAR NO ORACLE VIA SPRING BOOT =====
-def salvar_bcs(id_pet: int, bcs: int, condicao: str):
-    """
-    Envia para o Spring Boot apenas os campos que existem em TB_BCS_HISTORICO:
-    ID_BCS (sequence), NR_BCS, DS_FOTO_URL, DS_OBSERVACAO, DT_ANALISE (sysdate), ID_PET
-    """
+def salvar_bcs(id_pet: int, bcs: int, condicao: str, recomendacao: str, tendencia: str):
     try:
         payload = {
-            "nr_bcs":        bcs,
-            "ds_foto_url":   None,      # mobile envia base64, nao URL
-            "ds_observacao": condicao,  # ex: "Ideal", "Acima do ideal"
-            "id_pet":        id_pet
+            "bcs":       bcs,
+            "fotoUrl":   None,
+            "observacao": condicao + " — " + recomendacao,
+            "pet": { "id": id_pet }
         }
         response = requests.post(
-            f"{SPRING_BOOT_URL}/api/v1/bcs",
+            f"{SPRING_BOOT_URL}/bcs/novo",
             json=payload,
             timeout=5
         )
@@ -62,13 +58,13 @@ def salvar_bcs(id_pet: int, bcs: int, condicao: str):
             print(f"[BCS] Spring Boot retornou {response.status_code}: {response.text}")
             return False
     except requests.exceptions.ConnectionError:
-        print(f"[BCS] Spring Boot offline — nao foi possivel salvar. id_pet={id_pet} bcs={bcs}")
+        print(f"[BCS] Spring Boot offline — nao foi possivel salvar.")
         return False
     except requests.exceptions.Timeout:
-        print(f"[BCS] Spring Boot timeout. id_pet={id_pet} bcs={bcs}")
+        print(f"[BCS] Spring Boot timeout.")
         return False
     except Exception as e:
-        print(f"[BCS] Erro ao salvar: {str(e)}")
+        print(f"[BCS] Erro: {str(e)}")
         return False
 
 # ===== PROMPT VETERINARIO =====
@@ -152,11 +148,12 @@ async def analyze_bcs(request: BCSRequest):
         tendencia    = dados.get("tendencia", "estavel")
         risco        = dados.get("risco", "baixo")
 
-        # FIX: salvar_bcs agora recebe apenas os campos da TB_BCS_HISTORICO
         salvo = salvar_bcs(
             id_pet=request.id_pet,
             bcs=bcs,
-            condicao=condicao
+            condicao=condicao,
+            recomendacao=recomendacao,
+            tendencia=tendencia
         )
 
         return BCSResponse(
@@ -174,13 +171,14 @@ async def analyze_bcs(request: BCSRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro na analise BCS: {str(e)}")
 
-# ===== MOCK — testa sem foto e sem gastar credito =====
 @app.post("/analyze-bcs/mock")
 async def analyze_bcs_mock(id_pet: int = 1, especie: str = "cachorro"):
     salvo = salvar_bcs(
         id_pet=id_pet,
         bcs=5,
-        condicao="Ideal"
+        condicao="Ideal",
+        recomendacao="Manter dieta atual. Peso e condicao corporal adequados.",
+        tendencia="estavel"
     )
     return BCSResponse(
         id_pet=id_pet,

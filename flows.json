@@ -1,0 +1,687 @@
+[
+    {
+        "id": "882ed66569e793ed",
+        "type": "tab",
+        "label": "PetTrack Collar",
+        "disabled": false,
+        "info": ""
+    },
+    {
+        "id": "3984ecbe22d11d8d",
+        "type": "json",
+        "z": "882ed66569e793ed",
+        "name": "Parse JSON",
+        "property": "payload",
+        "action": "obj",
+        "pretty": false,
+        "x": 280,
+        "y": 160,
+        "wires": [
+            [
+                "e94e75e9093f0691"
+            ]
+        ]
+    },
+    {
+        "id": "e94e75e9093f0691",
+        "type": "function",
+        "z": "882ed66569e793ed",
+        "name": "Roteador de topicos",
+        "func": "let topic = msg.topic || '';\n\n// Roteia pelo topico\nif (topic.includes('/temperatura')) {\n    return [msg, null, null];\n} else if (topic.includes('/atividade')) {\n    return [null, msg, null];\n} else if (topic.includes('/alerta')) {\n    return [null, null, msg];\n}\nreturn [null, null, null];",
+        "outputs": 3,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 470,
+        "y": 160,
+        "wires": [
+            [
+                "fd37e0c6e2618f50"
+            ],
+            [
+                "38c0629e0a5d73b1"
+            ],
+            [
+                "773e75a8e2b0ced7"
+            ]
+        ]
+    },
+    {
+        "id": "fd37e0c6e2618f50",
+        "type": "function",
+        "z": "882ed66569e793ed",
+        "name": "Trata temperatura",
+        "func": "let payload = msg.payload;\nlet temp = Number(payload.valor);\nlet id_pet = payload.id_pet || 1;\n\n// Salva no contexto global\nglobal.set('ultima_temp', temp);\nglobal.set('id_pet', id_pet);\n\n// Passa so o valor para gauge e grafico\nreturn [{ payload: temp }, null];",
+        "outputs": 2,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 700,
+        "y": 100,
+        "wires": [
+            [
+                "4d8ee7c954a5789f",
+                "0ab2bdb717750a0d",
+                "7a88eec3a7c7a13c"
+            ],
+            []
+        ]
+    },
+    {
+        "id": "38c0629e0a5d73b1",
+        "type": "function",
+        "z": "882ed66569e793ed",
+        "name": "Trata atividade",
+        "func": "let payload = msg.payload;\nlet atv = Number(payload.valor);\nlet id_pet = payload.id_pet || global.get('id_pet') || 1;\n\n// Salva no contexto global\nglobal.set('ultima_atv', atv);\n\n// Contador de sedentarismo\nlet contador = global.get('contador_sed') || 0;\nif (atv < 20) {\n    contador++;\n    global.set('contador_sed', contador);\n} else {\n    global.set('contador_sed', 0);\n}\n\n// Monta leitura completa so quando tem temperatura tambem\nlet temp = global.get('ultima_temp');\nif (temp !== null && temp !== undefined) {\n    let leitura = {\n        temperatura:  temp,\n        atividade:    atv,\n        topicoMqtt:   msg.topic,\n        pet: { id: id_pet }\n    };\n    return [{ payload: atv }, { payload: leitura }];\n}\nreturn [{ payload: atv }, null];",
+        "outputs": 2,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 700,
+        "y": 200,
+        "wires": [
+            [
+                "a4652c4ad57234cf",
+                "56e02151625bfa9f",
+                "55c88989af5d0c8a"
+            ],
+            [
+                "32e5261bd822941d"
+            ]
+        ]
+    },
+    {
+        "id": "773e75a8e2b0ced7",
+        "type": "function",
+        "z": "882ed66569e793ed",
+        "name": "Trata alerta do ESP32",
+        "func": "let payload = msg.payload;\nlet tipo = payload.tipo;\nlet valor = Number(payload.valor);\nlet id_pet = payload.id_pet || global.get('id_pet') || 1;\n\nlet descricao = '';\nif (tipo === 'FEBRE') {\n    descricao = 'Temperatura corporal acima do normal: ' + valor.toFixed(1) + 'C. Consulte um veterinario.';\n} else if (tipo === 'SEDENTARISMO') {\n    descricao = 'Atividade fisica muito baixa: ' + valor.toFixed(0) + ' passos/min por periodo prolongado.';\n}\n\nmsg.payload = {\n    tp_alerta: tipo,\n    ds_descricao: descricao,\n    nr_valor_ref: valor,\n    st_resolvido: 'N',\n    id_pet: id_pet\n};\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 700,
+        "y": 300,
+        "wires": [
+            [
+                "29ba5a0fc482cf71",
+                "2128d03ed9947509"
+            ]
+        ]
+    },
+    {
+        "id": "7a88eec3a7c7a13c",
+        "type": "function",
+        "z": "882ed66569e793ed",
+        "name": "Verifica febre",
+        "func": "let temp = msg.payload;\nlet id_pet = global.get('id_pet') || 1;\n\nif (temp > 39.5) {\n    msg.payload = {\n        tp_alerta: 'FEBRE',\n        ds_descricao: 'Temperatura corporal elevada detectada pelo Node-RED: ' + temp.toFixed(1) + 'C',\n        nr_valor_ref: temp,\n        st_resolvido: 'N',\n        id_pet: id_pet\n    };\n    return msg;\n}\nreturn null;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 940,
+        "y": 60,
+        "wires": [
+            [
+                "29ba5a0fc482cf71",
+                "2128d03ed9947509"
+            ]
+        ]
+    },
+    {
+        "id": "55c88989af5d0c8a",
+        "type": "function",
+        "z": "882ed66569e793ed",
+        "name": "Verifica sedentarismo",
+        "func": "let atv = msg.payload;\nlet contador = global.get('contador_sed') || 0;\nlet id_pet = global.get('id_pet') || 1;\n\nif (contador >= 3) {\n    global.set('contador_sed', 0);\n    msg.payload = {\n        tp_alerta: 'SEDENTARISMO',\n        ds_descricao: 'Atividade fisica baixa por 3 leituras consecutivas: ' + atv.toFixed(0) + ' passos/min',\n        nr_valor_ref: atv,\n        st_resolvido: 'N',\n        id_pet: id_pet\n    };\n    return msg;\n}\nreturn null;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 940,
+        "y": 160,
+        "wires": [
+            [
+                "29ba5a0fc482cf71",
+                "2128d03ed9947509"
+            ]
+        ]
+    },
+    {
+        "id": "32e5261bd822941d",
+        "type": "http request",
+        "z": "882ed66569e793ed",
+        "name": "POST /collar/novo",
+        "method": "POST",
+        "ret": "obj",
+        "paytoqs": "ignore",
+        "url": "http://localhost:8080/collar/novo",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "insecureHTTPParser": false,
+        "authType": "",
+        "senderr": false,
+        "headers": [
+            {
+                "keyType": "other",
+                "keyValue": "",
+                "valueType": "other",
+                "valueValue": ""
+            }
+        ],
+        "x": 930,
+        "y": 240,
+        "wires": [
+            [
+                "1eeff7282a186bbc"
+            ]
+        ]
+    },
+    {
+        "id": "1eeff7282a186bbc",
+        "type": "debug",
+        "z": "882ed66569e793ed",
+        "name": "Leitura salva",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "x": 1160,
+        "y": 240,
+        "wires": []
+    },
+    {
+        "id": "29ba5a0fc482cf71",
+        "type": "http request",
+        "z": "882ed66569e793ed",
+        "name": "POST /alerta/novo",
+        "method": "POST",
+        "ret": "obj",
+        "paytoqs": "ignore",
+        "url": "http://localhost:8080/alerta/novo",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "insecureHTTPParser": false,
+        "authType": "",
+        "senderr": false,
+        "headers": [
+            {
+                "name": "Content-Type",
+                "value": "application/json"
+            }
+        ],
+        "x": 1150,
+        "y": 100,
+        "wires": [
+            [
+                "1f790a3b54506c87"
+            ]
+        ]
+    },
+    {
+        "id": "1f790a3b54506c87",
+        "type": "debug",
+        "z": "882ed66569e793ed",
+        "name": "Alerta salvo",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "x": 1360,
+        "y": 100,
+        "wires": []
+    },
+    {
+        "id": "2128d03ed9947509",
+        "type": "function",
+        "z": "882ed66569e793ed",
+        "name": "Formata alerta UI",
+        "func": "let a = msg.payload;\nlet icone = a.tp_alerta === 'FEBRE' ? 'FEBRE' : 'SEDENTARISMO';\nmsg.payload = icone + ' — ' + a.ds_descricao;\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 940,
+        "y": 340,
+        "wires": [
+            [
+                "e34a7808f62693fd",
+                "ad29f2725529d8b3"
+            ]
+        ]
+    },
+    {
+        "id": "e34a7808f62693fd",
+        "type": "ui_text",
+        "z": "882ed66569e793ed",
+        "group": "20a761550d53d30d",
+        "order": 1,
+        "width": 12,
+        "height": 1,
+        "name": "Ultimo alerta",
+        "label": "Ultimo alerta",
+        "format": "{{msg.payload}}",
+        "layout": "col-center",
+        "className": "",
+        "style": false,
+        "font": "",
+        "fontSize": 16,
+        "color": "#B71C1C",
+        "x": 1160,
+        "y": 340,
+        "wires": []
+    },
+    {
+        "id": "4d8ee7c954a5789f",
+        "type": "ui_gauge",
+        "z": "882ed66569e793ed",
+        "name": "Gauge Temperatura",
+        "group": "ac2e1e701ea13c26",
+        "order": 1,
+        "width": 6,
+        "height": 4,
+        "gtype": "gage",
+        "title": "Temperatura Corporal",
+        "label": "C",
+        "format": "{{value | number:1}}",
+        "min": 35,
+        "max": 42,
+        "colors": [
+            "#00CC00",
+            "#FF9900",
+            "#FF0000"
+        ],
+        "seg1": "38",
+        "seg2": "39.5",
+        "diff": false,
+        "className": "",
+        "x": 940,
+        "y": 420,
+        "wires": []
+    },
+    {
+        "id": "a4652c4ad57234cf",
+        "type": "ui_gauge",
+        "z": "882ed66569e793ed",
+        "name": "Gauge Atividade",
+        "group": "ac2e1e701ea13c26",
+        "order": 2,
+        "width": 6,
+        "height": 4,
+        "gtype": "gage",
+        "title": "Atividade Fisica",
+        "label": "passos/min",
+        "format": "{{value | number:0}}",
+        "min": 0,
+        "max": 100,
+        "colors": [
+            "#FF0000",
+            "#FF9900",
+            "#00CC00"
+        ],
+        "seg1": "20",
+        "seg2": "50",
+        "diff": false,
+        "className": "",
+        "x": 940,
+        "y": 480,
+        "wires": []
+    },
+    {
+        "id": "0ab2bdb717750a0d",
+        "type": "ui_chart",
+        "z": "882ed66569e793ed",
+        "name": "Grafico Temperatura",
+        "group": "ui-grp-historico",
+        "order": 1,
+        "width": 6,
+        "height": 4,
+        "label": "Temperatura (C)",
+        "chartType": "line",
+        "legend": "false",
+        "xformat": "HH:mm:ss",
+        "interpolate": "linear",
+        "nodata": "Aguardando dados...",
+        "dot": false,
+        "ymin": "35",
+        "ymax": "42",
+        "removeOlder": 1,
+        "removeOlderPoints": "100",
+        "removeOlderUnit": "3600",
+        "cutout": 0,
+        "useOneColor": false,
+        "useUTC": false,
+        "colors": [
+            "#E24B4A"
+        ],
+        "outputs": 1,
+        "useDifferentColor": false,
+        "className": "",
+        "x": 940,
+        "y": 540,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "56e02151625bfa9f",
+        "type": "ui_chart",
+        "z": "882ed66569e793ed",
+        "name": "Grafico Atividade",
+        "group": "ui-grp-historico",
+        "order": 2,
+        "width": 6,
+        "height": 4,
+        "label": "Atividade (passos/min)",
+        "chartType": "line",
+        "legend": "false",
+        "xformat": "HH:mm:ss",
+        "interpolate": "linear",
+        "nodata": "Aguardando dados...",
+        "dot": false,
+        "ymin": "0",
+        "ymax": "100",
+        "removeOlder": 1,
+        "removeOlderPoints": "100",
+        "removeOlderUnit": "3600",
+        "cutout": 0,
+        "useOneColor": false,
+        "useUTC": false,
+        "colors": [
+            "#1f77b4"
+        ],
+        "outputs": 1,
+        "useDifferentColor": false,
+        "className": "",
+        "x": 940,
+        "y": 600,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "88767f1d1436f853",
+        "type": "ui_template",
+        "z": "882ed66569e793ed",
+        "group": "40548c2a02bfd54a",
+        "name": "Status Collar",
+        "order": 1,
+        "width": 12,
+        "height": 2,
+        "format": "<div style=\"font-family:sans-serif;padding:8px;text-align:center\">\n  <div style=\"font-size:20px;font-weight:bold;color:#1565C0\">PetTrack Collar — Pet ID: {{msg.payload.id_pet || 1}}</div>\n  <div style=\"font-size:13px;color:#555;margin-top:4px\">Collar simulado via ESP32 Wokwi — MQTT TLS HiveMQ Cloud</div>\n</div>",
+        "storeOutMessages": true,
+        "fwdInMessages": true,
+        "resendOnRefresh": true,
+        "templateScope": "local",
+        "className": "",
+        "x": 700,
+        "y": 660,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "3a451f9ee7757d0f",
+        "type": "inject",
+        "z": "882ed66569e793ed",
+        "name": "Buscar clima 10min",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "600",
+        "once": true,
+        "onceDelay": "2",
+        "payload": "",
+        "payloadType": "date",
+        "x": 120,
+        "y": 500,
+        "wires": [
+            [
+                "9e2f379ecf490610"
+            ]
+        ]
+    },
+    {
+        "id": "9e2f379ecf490610",
+        "type": "http request",
+        "z": "882ed66569e793ed",
+        "name": "OpenWeatherMap SP",
+        "method": "GET",
+        "ret": "obj",
+        "paytoqs": "ignore",
+        "url": "http://api.openweathermap.org/data/2.5/weather?q=Sao+Paulo,BR&appid=0d095d8cbe0a0db6c4ad6bf59b0f6d01&units=metric&lang=pt_br",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "authType": "",
+        "x": 340,
+        "y": 500,
+        "wires": [
+            [
+                "7cbfe63df2dd8b2f"
+            ]
+        ]
+    },
+    {
+        "id": "7cbfe63df2dd8b2f",
+        "type": "function",
+        "z": "882ed66569e793ed",
+        "name": "Trata clima",
+        "func": "let d = msg.payload;\nif (!d || !d.main) {\n    node.warn('OpenWeather erro: ' + JSON.stringify(d));\n    return null;\n}\nlet clima = {\n    temp:    d.main.temp,\n    umidade: d.main.humidity,\n    chuva:   d.rain ? (d.rain['1h'] || 0) : 0,\n    nuvens:  d.clouds.all,\n    vento:   d.wind.speed,\n    cond:    d.weather[0].description\n};\nglobal.set('clima', clima);\nmsg.payload = clima;\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 540,
+        "y": 500,
+        "wires": [
+            [
+                "2cfcf4561a4fb14d"
+            ]
+        ]
+    },
+    {
+        "id": "2cfcf4561a4fb14d",
+        "type": "ui_template",
+        "z": "882ed66569e793ed",
+        "group": "ae01c04ec6632cfb",
+        "name": "Painel Clima",
+        "order": 1,
+        "width": 12,
+        "height": 3,
+        "format": "<div style=\"font-family:sans-serif;padding:10px\">\n  <div style=\"font-weight:bold;color:#1565C0;margin-bottom:8px\">CLIMA AGORA — SAO PAULO</div>\n  <div style=\"display:flex;flex-wrap:wrap;gap:20px;font-size:15px\">\n    <span>Temp: <b>{{msg.payload.temp}}C</b></span>\n    <span>Umidade: <b>{{msg.payload.umidade}}%</b></span>\n    <span>Chuva: <b>{{msg.payload.chuva}}mm</b></span>\n    <span>Nuvens: <b>{{msg.payload.nuvens}}%</b></span>\n    <span>Vento: <b>{{msg.payload.vento}}km/h</b></span>\n    <span>Cond: <b>{{msg.payload.cond}}</b></span>\n  </div>\n</div>",
+        "storeOutMessages": true,
+        "fwdInMessages": true,
+        "resendOnRefresh": true,
+        "templateScope": "local",
+        "className": "",
+        "x": 740,
+        "y": 500,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "aaeeecad92807208",
+        "type": "mqtt in",
+        "z": "882ed66569e793ed",
+        "name": "HIveMQ",
+        "topic": "pettrack/#",
+        "qos": "0",
+        "datatype": "auto-detect",
+        "broker": "077364c27e0f0033",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 100,
+        "y": 160,
+        "wires": [
+            [
+                "3984ecbe22d11d8d"
+            ]
+        ]
+    },
+    {
+        "id": "ad29f2725529d8b3",
+        "type": "debug",
+        "z": "882ed66569e793ed",
+        "name": "debug 1",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 1160,
+        "y": 420,
+        "wires": []
+    },
+    {
+        "id": "20a761550d53d30d",
+        "type": "ui_group",
+        "name": "Alertas",
+        "tab": "a8c2c368804a7280",
+        "order": 3,
+        "disp": true,
+        "width": 12,
+        "collapse": false
+    },
+    {
+        "id": "ac2e1e701ea13c26",
+        "type": "ui_group",
+        "name": "Leituras em Tempo Real",
+        "tab": "a8c2c368804a7280",
+        "order": 2,
+        "disp": true,
+        "width": 12,
+        "collapse": false
+    },
+    {
+        "id": "ui-grp-historico",
+        "type": "ui_group",
+        "name": "Historico",
+        "tab": "ui-tab",
+        "order": 3,
+        "disp": false,
+        "width": 12,
+        "collapse": false
+    },
+    {
+        "id": "40548c2a02bfd54a",
+        "type": "ui_group",
+        "name": "Status do Collar",
+        "tab": "a8c2c368804a7280",
+        "order": 1,
+        "disp": true,
+        "width": 12,
+        "collapse": false
+    },
+    {
+        "id": "ae01c04ec6632cfb",
+        "type": "ui_group",
+        "name": "Clima Atual - Sao Paulo",
+        "tab": "ad419e76e785bba1",
+        "order": 1,
+        "disp": true,
+        "width": 12,
+        "collapse": false
+    },
+    {
+        "id": "077364c27e0f0033",
+        "type": "mqtt-broker",
+        "name": "HiveMQ PetTrack",
+        "broker": "c9d03d6e4bf24b29b2a8b4fa3572a6b3.s1.eu.hivemq.cloud",
+        "port": "8883",
+        "tls": "1d137b5ed4de43ca",
+        "clientid": "nodered-pettrack-001",
+        "autoConnect": true,
+        "usetls": true,
+        "protocolVersion": 4,
+        "keepalive": 60,
+        "cleansession": true,
+        "autoUnsubscribe": true,
+        "birthTopic": "",
+        "birthQos": "0",
+        "birthPayload": "",
+        "birthMsg": {},
+        "closeTopic": "",
+        "closePayload": "",
+        "closeMsg": {},
+        "willTopic": "",
+        "willQos": "0",
+        "willPayload": "",
+        "willMsg": {},
+        "userProps": "",
+        "sessionExpiry": ""
+    },
+    {
+        "id": "a8c2c368804a7280",
+        "type": "ui_tab",
+        "name": "Collar Monitor",
+        "icon": "pets",
+        "order": 1,
+        "disabled": false,
+        "hidden": false
+    },
+    {
+        "id": "ui-tab",
+        "type": "ui_tab",
+        "name": "Grama Inteligente",
+        "icon": "grass",
+        "order": 1,
+        "disabled": false,
+        "hidden": false
+    },
+    {
+        "id": "ad419e76e785bba1",
+        "type": "ui_tab",
+        "name": "Clima SP",
+        "icon": "wb_sunny",
+        "order": 2,
+        "disabled": false,
+        "hidden": false
+    },
+    {
+        "id": "1d137b5ed4de43ca",
+        "type": "tls-config",
+        "name": "HiveMQ TLS",
+        "cert": "",
+        "key": "",
+        "ca": "",
+        "certname": "",
+        "keyname": "",
+        "caname": "",
+        "servername": "",
+        "verifyservercert": false,
+        "alpnprotocol": ""
+    },
+    {
+        "id": "045ca83def2a0827",
+        "type": "global-config",
+        "env": [],
+        "modules": {
+            "node-red-dashboard": "3.6.6"
+        }
+    }
+]
