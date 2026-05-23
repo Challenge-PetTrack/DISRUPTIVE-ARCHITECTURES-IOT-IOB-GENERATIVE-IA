@@ -286,3 +286,9 @@ Roteiro (~5 minutos):
 6. Dados salvos no Oracle
 
 ---
+
+
+## 📎 Links
+
+- **Vídeo YouTube:**https://youtu.be/C591dfs1aLc **
+- **Repositório IOT:** https://github.com/Challenge-PetTrack/DISRUPTIVE-ARCHITECTURES-IOT-IOB-GENERATIVE-IA.git **
