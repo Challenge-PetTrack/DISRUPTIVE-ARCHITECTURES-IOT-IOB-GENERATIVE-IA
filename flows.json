@@ -29,7 +29,6 @@
         "name": "Roteador de topicos",
         "func": "let topic = msg.topic || '';\n\n// Roteia pelo topico\nif (topic.includes('/temperatura')) {\n    return [msg, null, null];\n} else if (topic.includes('/atividade')) {\n    return [null, msg, null];\n} else if (topic.includes('/alerta')) {\n    return [null, null, msg];\n}\nreturn [null, null, null];",
         "outputs": 3,
-        "timeout": "",
         "noerr": 0,
         "initialize": "",
         "finalize": "",
@@ -121,7 +120,7 @@
         "type": "function",
         "z": "882ed66569e793ed",
         "name": "Verifica febre",
-        "func": "let temp = msg.payload;\nlet id_pet = global.get('id_pet') || 1;\n\nif (temp > 39.5) {\n    msg.payload = {\n        tp_alerta: 'FEBRE',\n        ds_descricao: 'Temperatura corporal elevada detectada pelo Node-RED: ' + temp.toFixed(1) + 'C',\n        nr_valor_ref: temp,\n        st_resolvido: 'N',\n        id_pet: id_pet\n    };\n    return msg;\n}\nreturn null;",
+        "func": "let temp = msg.payload;\nlet id_pet = global.get('id_pet') || 1;\n\nif (temp > 38.5) {\n    msg.payload = {\n        tipoAlerta: 'FEBRE',\n        descricao: 'Temperatura acima de 39.5C: ' + temp.toFixed(1) + 'C',\n        valorRef: temp,\n        resolvido: 'N',\n        pet: { id: id_pet }\n    };\n    return msg;\n}\nreturn null;",
         "outputs": 1,
         "timeout": "",
         "noerr": 0,
@@ -133,7 +132,8 @@
         "wires": [
             [
                 "29ba5a0fc482cf71",
-                "2128d03ed9947509"
+                "2128d03ed9947509",
+                "25c58d992619bd7d"
             ]
         ]
     },
@@ -142,7 +142,7 @@
         "type": "function",
         "z": "882ed66569e793ed",
         "name": "Verifica sedentarismo",
-        "func": "let atv = msg.payload;\nlet contador = global.get('contador_sed') || 0;\nlet id_pet = global.get('id_pet') || 1;\n\nif (contador >= 3) {\n    global.set('contador_sed', 0);\n    msg.payload = {\n        tp_alerta: 'SEDENTARISMO',\n        ds_descricao: 'Atividade fisica baixa por 3 leituras consecutivas: ' + atv.toFixed(0) + ' passos/min',\n        nr_valor_ref: atv,\n        st_resolvido: 'N',\n        id_pet: id_pet\n    };\n    return msg;\n}\nreturn null;",
+        "func": "let atv = msg.payload;\nlet contador = global.get('contador_sed') || 0;\nlet id_pet = global.get('id_pet') || 1;\n\nif (contador >= 3) {\n    global.set('contador_sed', 0);\n    msg.payload = {\n        tipoAlerta: 'SEDENTARISMO',\n        descricao: 'Atividade fisica baixa por 3 leituras: ' + atv.toFixed(0) + ' passos/min',\n        valorRef: atv,\n        resolvido: 'N',\n        pet: { id: id_pet }\n    };\n    return msg;\n}\nreturn null;",
         "outputs": 1,
         "timeout": "",
         "noerr": 0,
@@ -199,6 +199,9 @@
         "console": false,
         "tostatus": false,
         "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
         "x": 1160,
         "y": 240,
         "wires": []
@@ -220,8 +223,10 @@
         "senderr": false,
         "headers": [
             {
-                "name": "Content-Type",
-                "value": "application/json"
+                "keyType": "other",
+                "keyValue": "",
+                "valueType": "other",
+                "valueValue": ""
             }
         ],
         "x": 1150,
@@ -558,6 +563,38 @@
         "wires": []
     },
     {
+        "id": "25c58d992619bd7d",
+        "type": "debug",
+        "z": "882ed66569e793ed",
+        "name": "debug 2",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 1180,
+        "y": 40,
+        "wires": []
+    },
+    {
+        "id": "7198d67c5f91ad1f",
+        "type": "debug",
+        "z": "882ed66569e793ed",
+        "name": "debug 3",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 1200,
+        "y": 160,
+        "wires": []
+    },
+    {
         "id": "20a761550d53d30d",
         "type": "ui_group",
         "name": "Alertas",
@@ -677,7 +714,7 @@
         "alpnprotocol": ""
     },
     {
-        "id": "045ca83def2a0827",
+        "id": "43205c749d56a0d9",
         "type": "global-config",
         "env": [],
         "modules": {

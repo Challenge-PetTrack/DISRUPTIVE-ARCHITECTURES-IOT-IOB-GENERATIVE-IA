@@ -1,7 +1,7 @@
 # 🐾 PetTrack — IoT & Disruptive Architectures
 
 **Disciplina:** Disruptive Architectures: IoT, IoB & Generative IA  
-**Curso:** 2TDSPF — FIAP 2026  
+**Curso:** 2TDS — FIAP 2026  
 **Challenge:** Clyvo Vet  
 
 ---
