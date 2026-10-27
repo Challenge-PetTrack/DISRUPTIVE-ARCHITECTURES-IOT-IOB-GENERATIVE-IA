@@ -1,0 +1,34 @@
+{
+  "idGeracao": "45f216b4-83ca-4086-a45d-17ad29a39003",
+  "idPet": 1,
+  "geradoEm": "2026-10-27T22:11:29.793940Z",
+  "contextoGeradoEm": "2026-10-27T12:00:00-03:00",
+  "provedor": "mock",
+  "modelo": "simulacao",
+  "versaoPrompt": "health-report-v1",
+  "simulado": true,
+  "persistido": false,
+  "relatorio": {
+    "resumo": "SIMULACAO: contexto de Pet de teste, com 2 leituras IoT e tendencia BCS SUBINDO.",
+    "nivelAtencao": "INDETERMINADO",
+    "motivos": [
+      {
+        "descricao": "Dados recebidos para demonstrar a integracao; nenhuma avaliacao por IA foi realizada.",
+        "fontes": [
+          "pet",
+          "iotRecente",
+          "bcs"
+        ]
+      }
+    ],
+    "recomendacoes": [
+      "Revisar os registros com o veterinario; esta demonstracao nao determina conduta clinica."
+    ],
+    "limitacoes": [
+      "MODO SIMULADO: resultado deterministico, sem chamada ao provedor de IA.",
+      "Dados sinteticos de teste; nao representam paciente real.",
+      "Clima indisponivel: NAO_CONFIGURADO.",
+      "Relatorio de apoio ao acompanhamento; nao substitui avaliacao veterinaria."
+    ]
+  }
+}

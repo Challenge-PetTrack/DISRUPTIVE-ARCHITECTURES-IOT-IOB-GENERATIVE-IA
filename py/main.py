@@ -8,18 +8,19 @@ import requests
 
 # Carrega o .env
 load_dotenv()
+from health_report import install_health_report
 
 # ===== CONFIG =====
 app = FastAPI(
-    title="PetTrack BCS API",
-    description="Analise de Body Condition Score do pet via foto usando GPT-4 Vision",
-    version="1.0.0"
+    title="PetTrack IA API",
+    description="Analise BCS por foto e geracao de Health Report a partir do contexto consolidado",
+    version="1.1.0"
 )
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 SPRING_BOOT_URL = os.getenv("SPRING_BOOT_URL", "http://localhost:8080")
 
-client = OpenAI(api_key=OPENAI_API_KEY)
+install_health_report(app)
 
 # ===== MODELS =====
 class BCSRequest(BaseModel):
@@ -93,8 +94,8 @@ Responda EXATAMENTE neste formato JSON, sem markdown, sem explicacoes extras:
 def root():
     return {
         "projeto":     "PetTrack",
-        "servico":     "BCS Analysis API",
-        "versao":      "1.0.0",
+        "servico":     "BCS e Health Report API",
+        "versao":      "1.1.0",
         "status":      "online",
         "spring_boot": SPRING_BOOT_URL
     }
@@ -110,28 +111,31 @@ async def analyze_bcs(request: BCSRequest):
         if "," in image_data:
             image_data = image_data.split(",")[1]
 
-        response = client.chat.completions.create(
-            model="gpt-4o",
-            messages=[
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "text",
-                            "text": montar_prompt(request.especie, request.raca)
-                        },
-                        {
-                            "type": "image_url",
-                            "image_url": {
-                                "url": f"data:image/jpeg;base64,{image_data}",
-                                "detail": "high"
+        if not OPENAI_API_KEY:
+            raise HTTPException(status_code=503, detail="OPENAI_API_KEY nao configurada")
+        with OpenAI(api_key=OPENAI_API_KEY, timeout=30.0, max_retries=0) as client:
+            response = client.chat.completions.create(
+                model="gpt-4o",
+                messages=[
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": montar_prompt(request.especie, request.raca)
+                            },
+                            {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": f"data:image/jpeg;base64,{image_data}",
+                                    "detail": "high"
+                                }
                             }
-                        }
-                    ]
-                }
-            ],
-            max_tokens=300
-        )
+                        ]
+                    }
+                ],
+                max_tokens=300
+            )
 
         resposta_texto = response.choices[0].message.content.strip()
 
@@ -166,6 +170,8 @@ async def analyze_bcs(request: BCSRequest):
             salvo_no_banco=salvo
         )
 
+    except HTTPException:
+        raise
     except json.JSONDecodeError as e:
         raise HTTPException(status_code=500, detail=f"Erro ao parsear resposta da IA: {str(e)}")
     except Exception as e:

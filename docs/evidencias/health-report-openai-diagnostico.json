@@ -1,0 +1,12 @@
+{
+  "status": "falha",
+  "http_aplicacao": 503,
+  "codigo_aplicacao": "LIMITE_PROVEDOR",
+  "http_provedor": 429,
+  "codigo_provedor": "nao_classificado",
+  "simulado": false,
+  "dados": "fixture sintetica; sem Oracle",
+  "consulta_modelo": "sucesso",
+  "modelo": "gpt-4o",
+  "autenticacao": "aceita na consulta de modelo"
+}

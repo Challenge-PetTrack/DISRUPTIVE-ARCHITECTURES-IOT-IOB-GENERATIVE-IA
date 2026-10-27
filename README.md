@@ -1,5 +1,15 @@
 # 🐾 PetTrack — IoT & Disruptive Architectures
 
+## Sprint 4 — prioridade 1 implementada
+
+O contexto consolidado para o Health Report foi implementado no backend Java. Veja o [relatório da prioridade 1](docs/SPRINT4_PRIORIDADE1_RELATORIO.md) e o [contrato do contexto](../JAVA-ADVANCED/pettrack/docs/health-context.md).
+
+## Sprint 4 — prioridade 2 implementada
+
+Java e Python agora integram a geração do Health Report com OpenAI, resposta estruturada e modo de demonstração identificado. Veja o [relatório de alterações e testes](docs/SPRINT4_PRIORIDADE2_RELATORIO.md) e as [instruções de configuração e uso](../JAVA-ADVANCED/pettrack/docs/health-report.md). A chamada real ao provedor depende de chave válida; os testes utilizaram respostas simuladas. Persistência e interface aguardam as prioridades 3 e 4.
+
+As seções abaixo descrevem a base anterior; o relatório da sprint 4 registra as diferenças entre a proposta e a implementação atual.
+
 **Disciplina:** Disruptive Architectures: IoT, IoB & Generative IA  
 **Curso:** 2TDS — FIAP 2026  
 **Challenge:** Clyvo Vet  

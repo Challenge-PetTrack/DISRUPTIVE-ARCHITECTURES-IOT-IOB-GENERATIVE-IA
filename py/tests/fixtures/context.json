@@ -1,0 +1,24 @@
+{
+  "versao": "1.0",
+  "geradoEm": "2026-10-27T12:00:00-03:00",
+  "fusoHorario": "America/Sao_Paulo",
+  "pet": {"id": 1, "nome": "Pet de teste", "especie": "cachorro", "raca": null, "idadeAnos": 4.0, "pesoKg": 28.5},
+  "periodoIot": {"inicioInclusivo": "2026-10-26T12:00:00", "fimExclusivo": "2026-10-27T12:00:00"},
+  "iotRecente": {
+    "totalLeituras": 2, "temperaturasValidas": 2, "atividadesValidas": 2,
+    "temperaturaMedia": 39.0, "temperaturaMaxima": 40.0, "atividadeMedia": 10.0,
+    "ultimaLeitura": "2026-10-27T11:00:00", "alertas": []
+  },
+  "bcs": {
+    "ultima": {"id": 2, "score": 6, "observacao": "Avaliacao ficticia", "data": "2026-10-27T10:00:00"},
+    "anterior": {"id": 1, "score": 5, "observacao": null, "data": "2026-10-10T10:00:00"},
+    "tendencia": "SUBINDO"
+  },
+  "historico": {
+    "inicioEventos": "2026-07-29", "ultimaConsulta": null, "eventosRecentes": [],
+    "medicamentosAtivos": [], "limiteVacinas": "2026-11-26", "vacinasVencidasOuVencendo": []
+  },
+  "clima": {"status": "NAO_CONFIGURADO", "fonte": "OpenWeatherMap", "localidade": "", "observadoEm": null,
+    "temperaturaCelsius": null, "umidadePercentual": null, "condicao": null},
+  "avisos": ["Dados sinteticos de teste; nao representam paciente real.", "Clima indisponivel: NAO_CONFIGURADO."]
+}
