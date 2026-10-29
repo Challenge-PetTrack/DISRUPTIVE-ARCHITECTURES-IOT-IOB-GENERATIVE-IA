@@ -1,5 +1,7 @@
-"""Geracao sem persistencia. Somente o backend autorizado fornece o contexto."""
 import os
+import re
+import json
+import logging
 import secrets
 from datetime import datetime, timezone
 from threading import BoundedSemaphore
@@ -10,9 +12,12 @@ from fastapi import APIRouter, FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.exception_handlers import request_validation_exception_handler
 from fastapi.responses import JSONResponse
-from openai import OpenAI, APIConnectionError, APITimeoutError, APIStatusError, RateLimitError
+import httpx
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, AwareDatetime
 from health_context_models import HealthContext
+
+GeminiClient = httpx.Client
+LOGGER = logging.getLogger(__name__)
 
 PROMPT_VERSION = "health-report-v1"
 MAX_BODY_BYTES = 262144
@@ -54,7 +59,6 @@ class Relatorio(BaseModel):
 
 
 class RelatorioFinal(Relatorio):
-    # Reserva espaco para os avisos do contexto e a ressalva adicionados pelo servidor.
     limitacoes: Annotated[list[Annotated[str, Field(min_length=1, max_length=4000)]], Field(min_length=1, max_length=50)]
 
 
@@ -64,7 +68,7 @@ class HealthReportResponse(BaseModel):
     idPet: Annotated[int, Field(gt=0)]
     geradoEm: AwareDatetime
     contextoGeradoEm: AwareDatetime
-    provedor: Literal["openai", "mock"]
+    provedor: Literal["gemini", "mock"]
     modelo: Annotated[str, Field(min_length=1, max_length=200)]
     versaoPrompt: Literal["health-report-v1"]
     simulado: bool
@@ -97,7 +101,6 @@ def install_health_report(app: FastAPI):
             corpo.extend(parte)
             if len(corpo) > MAX_BODY_BYTES:
                 return JSONResponse(status_code=413, content={"detail": {"codigo": "CONTEXTO_MUITO_GRANDE"}})
-        # Reutiliza o corpo apos limitar o stream, inclusive requisicoes sem Content-Length.
         request._body = bytes(corpo)
         return await call_next(request)
 
@@ -105,7 +108,6 @@ def install_health_report(app: FastAPI):
     async def validacao(request: Request, exc: RequestValidationError):
         if request.url.path.rstrip("/") != "/health-report":
             return await request_validation_exception_handler(request, exc)
-        # Nao devolver imagens, dados clinicos ou entradas arbitrarias em mensagens de erro.
         return JSONResponse(status_code=422, content={"detail": {"codigo": "ENTRADA_INVALIDA"}})
 
 
@@ -125,62 +127,80 @@ def simular(contexto: HealthContext) -> Relatorio:
         limitacoes=["MODO SIMULADO: resultado deterministico, sem chamada ao provedor de IA."])
 
 
-def gerar_openai(contexto: HealthContext, modelo: str) -> Relatorio:
-    chave = os.getenv("OPENAI_API_KEY", "").strip()
+def gerar_gemini(contexto: HealthContext, modelo: str) -> Relatorio:
+    chave = os.getenv("GEMINI_API_KEY", "").strip()
     if not chave:
         raise erro(503, "IA_NAO_CONFIGURADA")
     try:
-        # Sem retries automaticos para evitar cobranças duplicadas em falhas ambiguas.
-        with OpenAI(api_key=chave, timeout=30.0, max_retries=0) as client:
-            resposta = client.responses.parse(
-                model=modelo,
-                input=[{"role": "system", "content": SYSTEM_PROMPT},
-                       {"role": "user", "content": contexto.model_dump_json()}],
-                text_format=Relatorio, max_output_tokens=2400, store=False)
-        if resposta.status != "completed":
-            raise erro(502, "RESPOSTA_IA_INCOMPLETA")
-        if any(getattr(item, "type", "") == "refusal" for saida in resposta.output
-               for item in getattr(saida, "content", [])):
+        with GeminiClient(timeout=httpx.Timeout(90.0, connect=5.0, write=10.0, pool=5.0), follow_redirects=False) as client:
+            with client.stream("POST",
+                    f"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent",
+                    headers={"x-goog-api-key": chave}, json={
+                        "systemInstruction": {"parts": [{"text": SYSTEM_PROMPT}]},
+                        "contents": [{"role": "user", "parts": [{"text": contexto.model_dump_json()}]}],
+                        "generationConfig": {"responseMimeType": "application/json",
+                            "responseJsonSchema": Relatorio.model_json_schema(), "maxOutputTokens": 8192}
+                    }) as response:
+                if response.status_code != 200:
+                    LOGGER.warning("Health Report: Gemini retornou HTTP %d", response.status_code)
+                if response.status_code == 429:
+                    raise erro(503, "LIMITE_PROVEDOR")
+                if response.status_code == 503:
+                    raise erro(503, "IA_INDISPONIVEL")
+                if response.status_code == 504:
+                    raise erro(504, "TEMPO_IA_ESGOTADO")
+                if response.status_code != 200:
+                    raise erro(502, "FALHA_PROVEDOR_IA")
+                corpo = bytearray()
+                for parte in response.iter_bytes():
+                    corpo.extend(parte)
+                    if len(corpo) > 1048576:
+                        raise erro(502, "RESPOSTA_IA_INVALIDA")
+                resposta = json.loads(corpo)
+        if resposta.get("promptFeedback", {}).get("blockReason"):
             raise erro(502, "RESPOSTA_IA_RECUSADA")
-        if resposta.output_parsed is None:
+        candidatos = resposta.get("candidates", [])
+        if not candidatos:
             raise erro(502, "RESPOSTA_IA_INVALIDA")
-        return Relatorio.model_validate(resposta.output_parsed.model_dump())
+        candidato = candidatos[0]
+        if candidato.get("finishReason") in {"SAFETY", "RECITATION", "BLOCKLIST", "PROHIBITED_CONTENT", "SPII"}:
+            raise erro(502, "RESPOSTA_IA_RECUSADA")
+        if candidato.get("finishReason") != "STOP":
+            raise erro(502, "RESPOSTA_IA_INCOMPLETA")
+        texto = "".join(p.get("text", "") for p in candidato.get("content", {}).get("parts", []) if not p.get("thought"))
+        return Relatorio.model_validate_json(texto)
     except HTTPException:
         raise
-    except APITimeoutError:
+    except httpx.TimeoutException:
+        LOGGER.warning("Health Report: tempo de espera do Gemini esgotado")
         raise erro(504, "TEMPO_IA_ESGOTADO") from None
-    except RateLimitError:
-        raise erro(503, "LIMITE_PROVEDOR") from None
-    except APIConnectionError:
+    except httpx.RequestError:
         raise erro(503, "IA_INDISPONIVEL") from None
-    except APIStatusError:
-        raise erro(502, "FALHA_PROVEDOR_IA") from None
-    except (ValidationError, ValueError, TypeError):
+    except (ValidationError, ValueError, TypeError, AttributeError, KeyError):
         raise erro(502, "RESPOSTA_IA_INVALIDA") from None
 
 
 @router.post("/health-report", response_model=HealthReportResponse)
 def health_report(contexto: HealthContext):
-    modo = os.getenv("HEALTH_REPORT_MODE", "openai").strip().lower()
-    if modo not in {"openai", "mock"}:
+    modo = os.getenv("HEALTH_REPORT_MODE", "gemini").strip().lower()
+    if modo not in {"gemini", "mock"}:
         raise erro(503, "MODO_IA_INVALIDO")
     if not VAGAS.acquire(blocking=False):
         raise erro(429, "GERACAO_OCUPADA")
     try:
-        modelo = os.getenv("HEALTH_REPORT_MODEL", "gpt-4o").strip()
-        if not modelo or len(modelo) > 200:
+        modelo = os.getenv("HEALTH_REPORT_MODEL", "gemini-3.6-flash").strip()
+        if not re.fullmatch(r"gemini-[A-Za-z0-9.-]{1,190}", modelo):
             raise erro(503, "MODELO_IA_NAO_CONFIGURADO")
-        relatorio = simular(contexto) if modo == "mock" else gerar_openai(contexto, modelo)
+        relatorio = simular(contexto) if modo == "mock" else gerar_gemini(contexto, modelo)
         if contexto.clima.status != "DISPONIVEL" and any("clima" in m.fontes for m in relatorio.motivos):
             raise erro(502, "FONTE_IA_INDISPONIVEL")
-        # Falta de dados nunca deve resultar em falsa garantia de baixo risco.
         if sem_dados(contexto):
             relatorio.nivelAtencao = "INDETERMINADO"
         relatorio.limitacoes = list(dict.fromkeys(relatorio.limitacoes + contexto.avisos + [AVISO]))
         return {
             "idGeracao": str(uuid4()), "idPet": contexto.pet.id,
             "geradoEm": datetime.now(timezone.utc).isoformat(), "contextoGeradoEm": contexto.geradoEm.isoformat(),
-            "provedor": "mock" if modo == "mock" else "openai", "modelo": "simulacao" if modo == "mock" else modelo,
+            "provedor": "mock" if modo == "mock" else "gemini", "modelo": "simulacao" if modo == "mock" else modelo,
             "versaoPrompt": PROMPT_VERSION, "simulado": modo == "mock", "persistido": False,
             "relatorio": relatorio.model_dump(),
         }

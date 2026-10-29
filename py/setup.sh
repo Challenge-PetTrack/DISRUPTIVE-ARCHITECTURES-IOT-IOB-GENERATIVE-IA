@@ -1,13 +1,8 @@
 #!/bin/bash
 echo "=== PetTrack BCS API - Setup ==="
 
-# Cria venv
 python3 -m venv venv
-
-# Ativa
 source venv/bin/activate
-
-# Instala dependencias
 pip install -r requirements.txt
 
 echo "=== Setup concluido! ==="

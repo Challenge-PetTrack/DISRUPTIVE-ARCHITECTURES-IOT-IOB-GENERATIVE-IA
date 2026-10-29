@@ -6,11 +6,9 @@ import os
 import json
 import requests
 
-# Carrega o .env
 load_dotenv()
 from health_report import install_health_report
 
-# ===== CONFIG =====
 app = FastAPI(
     title="PetTrack IA API",
     description="Analise BCS por foto e geracao de Health Report a partir do contexto consolidado",
@@ -22,12 +20,13 @@ SPRING_BOOT_URL = os.getenv("SPRING_BOOT_URL", "http://localhost:8080")
 
 install_health_report(app)
 
-# ===== MODELS =====
+
 class BCSRequest(BaseModel):
     id_pet: int
     foto: str
     especie: str
     raca: str = ""
+
 
 class BCSResponse(BaseModel):
     id_pet: int
@@ -38,7 +37,7 @@ class BCSResponse(BaseModel):
     risco: str
     salvo_no_banco: bool = False
 
-# ===== SALVAR NO ORACLE VIA SPRING BOOT =====
+
 def salvar_bcs(id_pet: int, bcs: int, condicao: str, recomendacao: str, tendencia: str):
     try:
         payload = {
@@ -68,7 +67,7 @@ def salvar_bcs(id_pet: int, bcs: int, condicao: str, recomendacao: str, tendenci
         print(f"[BCS] Erro: {str(e)}")
         return False
 
-# ===== PROMPT VETERINARIO =====
+
 def montar_prompt(especie: str, raca: str) -> str:
     raca_info = f" da raca {raca}" if raca else ""
     return f"""Voce e um veterinario especialista em nutricao animal.
@@ -89,7 +88,7 @@ Responda EXATAMENTE neste formato JSON, sem markdown, sem explicacoes extras:
   "risco": "<baixo|moderado|alto>"
 }}"""
 
-# ===== ENDPOINTS =====
+
 @app.get("/")
 def root():
     return {
@@ -100,9 +99,11 @@ def root():
         "spring_boot": SPRING_BOOT_URL
     }
 
+
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
 
 @app.post("/analyze-bcs", response_model=BCSResponse)
 async def analyze_bcs(request: BCSRequest):
@@ -176,6 +177,7 @@ async def analyze_bcs(request: BCSRequest):
         raise HTTPException(status_code=500, detail=f"Erro ao parsear resposta da IA: {str(e)}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro na analise BCS: {str(e)}")
+
 
 @app.post("/analyze-bcs/mock")
 async def analyze_bcs_mock(id_pet: int = 1, especie: str = "cachorro"):

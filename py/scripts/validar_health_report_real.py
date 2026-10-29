@@ -1,8 +1,3 @@
-"""Validacao paga opt-in: Java -> Python -> OpenAI, com fixture ficticia e sem Oracle.
-
-Uso: python scripts/validar_health_report_real.py --maven C:/.../mvn.cmd
-Requer JAVA_HOME apontando para JDK 21 e repositorio Java ao lado do repositorio IoT.
-"""
 import argparse
 import os
 from pathlib import Path
@@ -17,17 +12,18 @@ from dotenv import dotenv_values
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--maven", required=True)
+    parser.add_argument("--evidence", help="Caminho opcional para salvar o resultado.")
     args = parser.parse_args()
     python_dir = Path(__file__).resolve().parents[1]
     iot = python_dir.parent
     java = iot.parent / "JAVA-ADVANCED" / "pettrack"
     env = os.environ.copy()
     env.update({k: v for k, v in dotenv_values(python_dir / ".env").items() if v is not None})
-    if not env.get("OPENAI_API_KEY", "").strip() or len(env.get("HEALTH_REPORT_SERVICE_TOKEN", "")) < 32:
-        print("Configuracao incompleta: chave OpenAI e token de servico sao necessarios.")
+    if not env.get("GEMINI_API_KEY", "").strip() or len(env.get("HEALTH_REPORT_SERVICE_TOKEN", "")) < 32:
+        print("Configuracao incompleta: chave Gemini e token de servico sao necessarios.")
         return 2
-    env["HEALTH_REPORT_MODE"] = "openai"
-    env["PETTRACK_OPENAI_LIVE_TESTS"] = "true"
+    env["HEALTH_REPORT_MODE"] = "gemini"
+    env["PETTRACK_GEMINI_LIVE_TESTS"] = "true"
     env["PYTHONUNBUFFERED"] = "1"
     server = subprocess.Popen(
         [sys.executable, "-m", "uvicorn", "main:app", "--host", "127.0.0.1", "--port", "18081"],
@@ -49,18 +45,18 @@ def main():
             print("API local nao iniciou. Verifique disponibilidade da porta 18081.")
             return 2
         java_env = env.copy()
-        # Java recebe somente o segredo de integracao; a chave OpenAI fica no processo Python.
+        java_env.pop("GEMINI_API_KEY", None)
         java_env.pop("OPENAI_API_KEY", None)
-        output = iot / "docs" / "evidencias" / "health-report-openai-real.json"
-        log = java / "target" / "health-report-openai-live.log"
+        output = Path(args.evidence).resolve() if args.evidence else java / "target" / "health-report-gemini.json"
+        log = java / "target" / "health-report-gemini-live.log"
         log.parent.mkdir(parents=True, exist_ok=True)
         with log.open("w", encoding="utf-8") as stream:
             result = subprocess.run(
-                [args.maven, "-o", "-Dtest=HealthReportOpenAIIT", f"-Dpettrack.health-report.evidence={output}", "test"],
+                [args.maven, "-o", "-Dtest=HealthReportGeminiIT", f"-Dpettrack.health-report.evidence={output}", "test"],
                 cwd=java, env=java_env, stdout=stream, stderr=subprocess.STDOUT,
                 creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0, timeout=120)
-        print("Integracao real aprovada; evidencia ficticia salva." if result.returncode == 0
-              else "Integracao real falhou; consulte o log de teste sem imprimir credenciais.")
+        print("Integracao real aprovada." if result.returncode == 0
+              else "Integracao real falhou; consulte o log de teste.")
         return result.returncode
     finally:
         server.terminate()

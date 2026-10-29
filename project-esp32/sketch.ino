@@ -3,38 +3,30 @@
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
 
-// ===== WIFI =====
 const char* ssid     = "Wokwi-GUEST";
 const char* password = "";
 
-// ===== MQTT =====
 const char* mqtt_server = "c9d03d6e4bf24b29b2a8b4fa3572a6b3.s1.eu.hivemq.cloud";
 const int   mqtt_port   = 8883;
 const char* mqtt_user   = "rm563719";
 const char* mqtt_pass   = "Fiapinhos12@";
 const char* client_id   = "pettrack-collar-001";
 
-// ===== ID DO PET (fixo para simulacao) =====
 const int ID_PET = 1;
 
-// ===== TOPICOS =====
 char topic_temp[60];
 char topic_atv[60];
 char topic_alerta[60];
 
-// ===== PINOS =====
-#define PIN_TEMP 34   // Potenciometro simulando temperatura
-#define PIN_ATV  35   // Potenciometro simulando atividade
+#define PIN_TEMP 34
+#define PIN_ATV  35
 
-// ===== CONTROLE DE SEDENTARISMO =====
 int leituras_baixas = 0;
 const int LIMITE_SEDENTARISMO = 3;
 
-// ===== CLIENTES =====
 WiFiClientSecure espClient;
 PubSubClient client(espClient);
 
-// ===== WIFI =====
 void setup_wifi() {
   Serial.print("Conectando WiFi");
   WiFi.begin(ssid, password);
@@ -45,7 +37,6 @@ void setup_wifi() {
   Serial.println("\nWiFi OK — IP: " + WiFi.localIP().toString());
 }
 
-// ===== MQTT =====
 void reconnect() {
   while (!client.connected()) {
     Serial.print("Conectando MQTT...");
@@ -60,23 +51,18 @@ void reconnect() {
   }
 }
 
-// ===== LER TEMPERATURA =====
-// Potenciometro 0-4095 mapeado para 35.0 a 42.0 graus Celsius
 float lerTemperatura() {
   int raw = analogRead(PIN_TEMP);
   float temp = 35.0 + (raw / 4095.0) * 7.0;
   return temp;
 }
 
-// ===== LER ATIVIDADE =====
-// Potenciometro 0-4095 mapeado para 0 a 100 passos/min
 float lerAtividade() {
   int raw = analogRead(PIN_ATV);
   float atv = (raw / 4095.0) * 100.0;
   return atv;
 }
 
-// ===== PUBLICAR TEMPERATURA =====
 void publicarTemperatura(float temp) {
   StaticJsonDocument<200> doc;
   doc["id_pet"]  = ID_PET;
@@ -91,7 +77,6 @@ void publicarTemperatura(float temp) {
   Serial.println("[TEMP] " + String(buffer));
 }
 
-// ===== PUBLICAR ATIVIDADE =====
 void publicarAtividade(float atv) {
   StaticJsonDocument<200> doc;
   doc["id_pet"]  = ID_PET;
@@ -106,7 +91,6 @@ void publicarAtividade(float atv) {
   Serial.println("[ATV]  " + String(buffer));
 }
 
-// ===== PUBLICAR ALERTA =====
 void publicarAlerta(const char* tipo, float valor, const char* descricao) {
   StaticJsonDocument<256> doc;
   doc["id_pet"]    = ID_PET;
@@ -121,32 +105,26 @@ void publicarAlerta(const char* tipo, float valor, const char* descricao) {
   Serial.println("[ALERTA] " + String(buffer));
 }
 
-// ===== VERIFICAR ALERTAS =====
 void verificarAlertas(float temp, float atv) {
-
-  // Alerta de FEBRE
   if (temp > 39.5) {
     publicarAlerta("FEBRE", temp, "Temperatura corporal acima do normal. Consulte um veterinario.");
   }
 
-  // Controle de SEDENTARISMO (3 leituras consecutivas abaixo de 20)
   if (atv < 20.0) {
     leituras_baixas++;
     if (leituras_baixas >= LIMITE_SEDENTARISMO) {
       publicarAlerta("SEDENTARISMO", atv, "Atividade fisica muito baixa por periodo prolongado.");
-      leituras_baixas = 0; // reset para nao ficar spamando
+      leituras_baixas = 0;
     }
   } else {
-    leituras_baixas = 0; // reset se voltou a se mexer
+    leituras_baixas = 0;
   }
 }
 
-// ===== SETUP =====
 void setup() {
   Serial.begin(115200);
   delay(500);
 
-  // Monta os topicos com id_pet
   sprintf(topic_temp,   "pettrack/collar/%d/temperatura", ID_PET);
   sprintf(topic_atv,    "pettrack/collar/%d/atividade",   ID_PET);
   sprintf(topic_alerta, "pettrack/collar/%d/alerta",      ID_PET);
@@ -159,11 +137,10 @@ void setup() {
 
   setup_wifi();
 
-  espClient.setInsecure(); // TLS sem verificacao de certificado (ok para dev)
+  espClient.setInsecure();
   client.setServer(mqtt_server, mqtt_port);
 }
 
-// ===== LOOP =====
 void loop() {
   if (!client.connected()) {
     reconnect();
@@ -178,5 +155,5 @@ void loop() {
   publicarAtividade(atv);
   verificarAlertas(temp, atv);
 
-  delay(3000); // publica a cada 3 segundos
+  delay(3000);
 }

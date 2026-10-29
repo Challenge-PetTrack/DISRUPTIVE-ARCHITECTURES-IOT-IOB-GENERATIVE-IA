@@ -1,4 +1,3 @@
-"""Contrato de entrada equivalente a HealthContextDTO (Java), versao 1.0."""
 from datetime import date, datetime
 from typing import Annotated, Literal
 from pydantic import BaseModel, ConfigDict, Field, AwareDatetime, model_validator

@@ -1,15 +1,5 @@
 # 🐾 PetTrack — IoT & Disruptive Architectures
 
-## Sprint 4 — prioridade 1 implementada
-
-O contexto consolidado para o Health Report foi implementado no backend Java. Veja o [relatório da prioridade 1](docs/SPRINT4_PRIORIDADE1_RELATORIO.md) e o [contrato do contexto](../JAVA-ADVANCED/pettrack/docs/health-context.md).
-
-## Sprint 4 — prioridade 2 implementada
-
-Java e Python agora integram a geração do Health Report com OpenAI, resposta estruturada e modo de demonstração identificado. Veja o [relatório de alterações e testes](docs/SPRINT4_PRIORIDADE2_RELATORIO.md) e as [instruções de configuração e uso](../JAVA-ADVANCED/pettrack/docs/health-report.md). A chamada real ao provedor depende de chave válida; os testes utilizaram respostas simuladas. Persistência e interface aguardam as prioridades 3 e 4.
-
-As seções abaixo descrevem a base anterior; o relatório da sprint 4 registra as diferenças entre a proposta e a implementação atual.
-
 **Disciplina:** Disruptive Architectures: IoT, IoB & Generative IA  
 **Curso:** 2TDS — FIAP 2026  
 **Challenge:** Clyvo Vet  
@@ -18,10 +8,11 @@ As seções abaixo descrevem a base anterior; o relatório da sprint 4 registra 
 
 ## 📋 Descrição
 
-Módulo de IoT e Visão Computacional do **PetTrack**, sistema operacional da saúde contínua do pet. Este módulo implementa dois pilares de tecnologia disruptiva:
+Módulo de IoT, Visão Computacional e Relatórios Inteligentes do **PetTrack**, sistema operacional da saúde contínua do pet. Este módulo implementa três frentes de tecnologia disruptiva:
 
 1. **Collar inteligente simulado** — monitora temperatura corporal e atividade física do animal em tempo real via MQTT
-2. **BCS por foto** — análise do Body Condition Score (escore de condição corporal 1-9) via foto enviada pelo tutor ou veterinário, usando IA generativa (Claude Vision API)
+2. **BCS por foto** — análise do Body Condition Score (escore de condição corporal 1-9) via foto enviada pelo tutor ou veterinário
+3. **Health Report estruturado** — geração de relatórios consolidados de acompanhamento a partir da telemetria IoT, histórico clínico, evolução do BCS e dados climáticos, integrado ao portal Java e persistido no Oracle DB
 
 A proposta transforma o cuidado veterinário de **reativo para preventivo** — detectando febre, sedentarismo e má nutrição antes que se tornem emergências clínicas.
 
@@ -53,12 +44,23 @@ A proposta transforma o cuidado veterinário de **reativo para preventivo** — 
 │       │ HTTP POST (base64)                          │
 │       ▼                                             │
 │  Python FastAPI — /analyze-bcs                      │
-│       │ Claude Vision API                           │
 │       ▼                                             │
 │  BCS Score 1-9 + Recomendação nutricional           │
 │       │ Salva via Spring Boot                       │
 │       ▼                                             │
 │  Oracle DB (tb_bcs_historico)                       │
+└─────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────┐
+│            HEALTH REPORT CONSOLIDADO                │
+│                                                     │
+│  Portal Web / API Spring Boot                       │
+│  Consolida contexto (IoT 24h + BCS + Clínico + Clima)│
+│       │ HTTP POST /health-report (Bearer Token)     │
+│       ▼                                             │
+│  Python FastAPI + Gemini Structured Outputs         │
+│       ▼                                             │
+│  Spring Boot valida e persiste (TB_HEALTH_REPORT)   │
 └─────────────────────────────────────────────────────┘
 ```
 
@@ -105,26 +107,7 @@ O **Body Condition Score (BCS)** é um padrão veterinário internacional que av
 | 6 - 7 | Acima do ideal | Risco de sobrepeso |
 | 8 - 9 | Obeso | Doenças metabólicas |
 
-### Fluxo da Análise
-
-```
-Tutor/Vet tira foto do pet no app
-        │ HTTP POST /analyze-bcs
-        ▼
-Python FastAPI
-        │ Claude Vision API analisa:
-        │  - Silhueta do animal
-        │  - Visibilidade de costelas e coluna
-        │  - Depósitos de gordura
-        │  - Proporção corporal
-        ▼
-Retorna BCS + condição + recomendação nutricional
-        │ Spring Boot salva no Oracle
-        ▼
-App exibe resultado + tendência histórica
-```
-
-### Endpoint Python
+### Endpoint Python (`/analyze-bcs`)
 
 ```json
 POST /analyze-bcs
@@ -149,40 +132,9 @@ Response:
 
 ---
 
-## ⚙️ Tecnologias Utilizadas
+## 📄 Parte 3 — Health Report Consolidado (`/health-report`)
 
-| Tecnologia | Parte | Função |
-|---|---|---|
-| ESP32 (Wokwi) | Collar | Microcontrolador simulado |
-| MQTT TLS porta 8883 | Collar | Protocolo IoT seguro |
-| HiveMQ Cloud | Collar | Broker MQTT na nuvem |
-| Node-RED | Collar | Processamento e dashboard |
-| OpenWeatherMap API | Collar | Dados climáticos externos |
-| Python FastAPI | BCS | API de visão computacional |
-| Claude Vision API | BCS | Análise de foto do pet |
-| ArduinoJson | Collar | Serialização JSON no ESP32 |
-| PubSubClient | Collar | Cliente MQTT para ESP32 |
-| Oracle Database | Ambos | Persistência de dados |
-
----
-
-## 📁 Estrutura do Repositório
-
-```
-iot/
-├── collar/
-│   ├── sketch.ino        # Código do ESP32
-│   └── diagram.json      # Circuito Wokwi
-├── bcs/
-│   ├── main.py           # FastAPI — endpoint /analyze-bcs
-│   ├── requirements.txt  # Dependências Python
-│   └── Dockerfile        # Container Python
-├── nodered/
-│   └── flows.json        # Flow Node-RED completo
-├── sql/
-│   └── ddl.sql           # Tabelas Oracle
-└── README.md             # Este arquivo
-```
+O endpoint `POST /health-report` recebe o contexto consolidado autenticado pelo backend Spring Boot (`HealthContext`), valida os dados com Pydantic e retorna um relatório estruturado contendo resumo, nível de atenção (`BAIXO`, `MODERADO`, `ALTO`, `INDETERMINADO`), motivos vinculados às fontes (`pet`, `iotRecente`, `bcs`, `historico`, `clima`), recomendações e limitações.
 
 ---
 
@@ -191,7 +143,7 @@ iot/
 ### Collar — ESP32 no Wokwi
 
 1. Acesse [wokwi.com](https://wokwi.com) e crie um projeto ESP32
-2. Cole o `sketch.ino` e o `diagram.json`
+2. Cole o `project-esp32/sketch.ino` e o `project-esp32/diagram.json`
 3. Clique em **Play**
 4. Serial Monitor deve exibir:
 ```
@@ -201,15 +153,21 @@ MQTT conectado!
 {"id_pet":1,"sensor":"atividade","valor":72,"unidade":"passos/min"}
 ```
 
-### BCS — Python FastAPI
+### API Python FastAPI (BCS & Health Report)
 
-```bash
-cd bcs
-pip install -r requirements.txt
-uvicorn main:app --reload --port 8000
+```powershell
+cd py
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements-dev.lock.txt
+.\.venv\Scripts\python.exe -m uvicorn main:app --host 127.0.0.1 --port 8000
 ```
 
-Documentação automática em `http://localhost:8000/docs`
+Documentação automática em `http://127.0.0.1:8000/docs`
+
+Execução dos testes automatizados:
+```powershell
+.\.venv\Scripts\python.exe -m pytest -q
+```
 
 ### Node-RED
 
@@ -238,42 +196,6 @@ node-red
 
 ---
 
-## 🗄️ Banco de Dados Oracle
-
-```sql
-CREATE TABLE tb_alerta_collar (
-    id_alerta    NUMBER GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
-    id_pet       NUMBER NOT NULL,
-    tp_alerta    VARCHAR2(20) NOT NULL,
-    vl_sensor    NUMBER(5,2),
-    ds_descricao VARCHAR2(255),
-    dt_alerta    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE tb_bcs_historico (
-    id_bcs       NUMBER GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
-    id_pet       NUMBER NOT NULL,
-    nr_score     NUMBER(2) NOT NULL,
-    ds_condicao  VARCHAR2(30),
-    ds_recomend  VARCHAR2(500),
-    ds_tendencia VARCHAR2(20),
-    dt_analise   TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-```
-
----
-
-## 📈 Critérios de Avaliação
-
-| Critério | Peso | Entregável |
-|---|---|---|
-| Aplicação técnica de IoT e/ou Visão Computacional | 50pts | Collar ESP32 + BCS por foto |
-| Clareza e didática do vídeo | 20pts | Vídeo ~5min YouTube |
-| Organização do repositório e documentação | 20pts | Este README + estrutura de pastas |
-| Disrupção e originalidade | 10pts | Health score + BCS veterinário por foto |
-
----
-
 ## 👥 Integrantes
 
 Nome | RM
@@ -283,22 +205,9 @@ Moisés Waidemann Molinillo Júnior | 563719
 Gabriel Sbrana Campos | 565849
 Richard Freitas | 566127
 
-## 🎬 Vídeo Demonstrativo
-
-> Link: _em breve_
-
-Roteiro (~5 minutos):
-1. ESP32 no Wokwi publicando temperatura e atividade
-2. HiveMQ Cloud recebendo em tempo real
-3. Node-RED processando e gerando alertas
-4. Dashboard com todos os indicadores
-5. Envio de foto pelo app e retorno do BCS score
-6. Dados salvos no Oracle
-
 ---
-
 
 ## 📎 Links
 
-- **Vídeo YouTube:**https://youtu.be/C591dfs1aLc **
-- **Repositório IOT:** https://github.com/Challenge-PetTrack/DISRUPTIVE-ARCHITECTURES-IOT-IOB-GENERATIVE-IA.git **
+- **Vídeo YouTube:** https://youtu.be/C591dfs1aLc
+- **Repositório IOT:** https://github.com/Challenge-PetTrack/DISRUPTIVE-ARCHITECTURES-IOT-IOB-GENERATIVE-IA.git
