@@ -1,236 +1,517 @@
 # 🐾 PetTrack — IoT, Visão Computacional & IA Generativa
 
 > **FIAP Challenge 2026 · 2º Ano ADS (Turmas de Fevereiro · 2º Semestre)**  
-> **Disciplina:** Disruptive Architectures: IoT, IoB & Generative IA — **Sprint 4: Implementação e Integração da Solução de IA, Visão Computacional, Telemetria IoT e Validações**  
+> **Disciplina:** Disruptive Architectures: IoT, IoB & Generative IA  
+> **Sprint 4:** Consolidação Final, Implementação da Solução de IA Generativa, Visão Computacional, Telemetria IoT e Validações de Ponta a Ponta  
 > **Parceiro de Negócio:** Clyvo Vet  
 
 ---
 
 ## 👥 Integrantes do Grupo
 
-| Nome Completo | RM |
-| :--- | :--- |
-| **Gabriel Sbrana Campos** | RM 565849 |
-| **Moisés Waidemann Molinillo Júnior** | RM 563719 |
-| **Thiago Rodrigues da Mota** | RM 563650 |
-| **Richard Freitas** | RM 566127 |
+| Nome Completo | RM | Turma |
+| :--- | :--- | :--- |
+| **Gabriel Sbrana Campos** | RM 565849 | 2TDSPF |
+| **Moisés Waidemann Molinillo Júnior** | RM 563719 | 2TDSPF |
+| **Thiago Rodrigues da Mota** | RM 563650 | 2TDSPF |
+| **Richard Freitas** | RM 566127 | 2TDSPF |
 
 ---
 
 ## 🔗 Links Oficiais da Entrega (Sprint 4)
 
 * 🎥 **Vídeo Pitch e Demonstração da Solução (YouTube - ~5 minutos):**  
-  > **[https://youtu.be/C591dfs1aLc](https://youtu.be/C591dfs1aLc)**  
-  > *(Vídeo demonstrando a ideia central, o funcionamento da IA integrada, a telemetria do colar inteligente com Node-RED, a visão computacional e o impacto para tutor e clínica parceira)*  
+  > **[https://youtu.be/Ahc93FSBpuU](https://youtu.be/Ahc93FSBpuU)**  
+  > *(Apresentação da ideia central do projeto, demonstração funcional da IA Generativa integrada, telemetria do colar inteligente via MQTT e Node-RED, classificação de escore corporal por visão computacional e benefícios práticos para tutor e clínica).*
 * 💻 **Repositório GitHub do Módulo:**  
-  > **[https://github.com/Challenge-PetTrack/DISRUPTIVE-ARCHITECTURES-IOT-IOB-GENERATIVE-IA.git](https://github.com/Challenge-PetTrack/DISRUPTIVE-ARCHITECTURES-IOT-IOB-GENERATIVE-IA.git)**  
+  > **[https://github.com/Challenge-PetTrack/DISRUPTIVE-ARCHITECTURES-IOT-IOB-GENERATIVE-IA](https://github.com/Challenge-PetTrack/DISRUPTIVE-ARCHITECTURES-IOT-IOB-GENERATIVE-IA)** *(Branch principal: `main`)*
 
 ---
 
-## 📋 Descrição do Desafio e Solução Proposta
-
-Em parceria com a **Clyvo Vet**, o **PetTrack** ataca a principal dor do mercado veterinário: o **cuidado episódico e reativo**. Na rotina convencional, o tutor só procura a clínica diante de sintomas graves ou emergências, causando perda de vínculo longitudinal, abandono de tratamentos preventivos e queda no LTV da clínica.
-
-Para solucionar essa dor, este módulo implementa um ecossistema integrado em três frentes de tecnologia disruptiva:
-1. **Colar Inteligente Simulado (IoT):** Monitoramento contínuo em tempo real de temperatura corporal e nível de atividade física do animal via ESP32, protocolo MQTT TLS e dashboard analítico no Node-RED.
-2. **Visão Computacional para Escore Corporal (BCS 1-9):** Classificação do estado nutricional do pet através de foto enviada pelo tutor ou veterinário, orientando intervenções antes que o animal atinja sobrepeso ou desnutrição.
-3. **Health Report Estruturado com IA Generativa (Google Gemini):** Consolidação de todo o histórico clínico, telemetria das últimas 24h, evolução do BCS, medicamentos ativos e clima externo para gerar relatórios preditivos de saúde com linguagem humanizada, alertas e recomendações de acompanhamento clínico.
+## 📑 Sumário
+1. [Visão Geral do Desafio & Proposta de Valor (Clyvo Vet)](#-visão-geral-do-desafio--proposta-de-valor-clyvo-vet)
+2. [Arquitetura Geral da Solução e Fluxo de Dados](#-arquitetura-geral-da-solução-e-fluxo-de-dados)
+3. [Componente de IA Generativa — Health Report Preditivo](#-componente-de-ia-generativa--health-report-preditivo)
+4. [Componente de Visão Computacional — Análise BCS por Imagem](#-componente-de-visão-computacional--análise-bcs-por-imagem)
+5. [Módulo IoT — Colar Inteligente (ESP32 + MQTT + HiveMQ Cloud)](#-módulo-iot--colar-inteligente-esp32--mqtt--hivemq-cloud)
+6. [Dashboard Analítico no Node-RED](#-dashboard-analítico-no-node-red)
+7. [Contratos de Dados e Estrutura dos Modelos Pydantic](#-contratos-de-dados-e-estrutura-dos-modelos-pydantic)
+8. [Segurança, Resiliência e Mitigação de Falhas](#-segurança-resiliência-e-mitigação-de-falhas)
+9. [Instruções de Instalação e Execução](#-instruções-de-instalação-e-execução)
+10. [Testes Automatizados (Pytest) e Validações](#-testes-automatizados-pytest-e-validações)
+11. [Estrutura do Repositório](#-estrutura-do-repositório)
+12. [Checklist de Atendimento aos Critérios da Sprint 4](#-checklist-de-atendimento-aos-critérios-da-sprint-4)
+13. [Artefatos para Submissão no Portal FIAP (.zip)](#-artefatos-para-submissão-no-portal-fiap-zip)
 
 ---
 
-## 🏗️ Arquitetura Completa de Integração
+## 🎯 Visão Geral do Desafio & Proposta de Valor (Clyvo Vet)
+
+### O Problema de Negócio
+No modelo tradicional de saúde veterinária, o cuidado prestado é predominantemente **reativo e episódico**. A maioria dos tutores só recorre ao médico veterinário quando o animal já manifesta sinais clínicos avançados ou dor aguda. Esse comportamento acarreta sérias consequências:
+* **Perda do histórico contínuo:** O veterinário atende o animal pontualmente sem dados objetivos sobre sua rotina, temperatura e atividade física nos dias anteriores.
+* **Abandono do plano terapêutico:** Elevado índice de esquecimento na administração de antibióticos e medicamentos contínuos em domicílio.
+* **Sobrecarga de dados desconectados:** Quando o tutor anota informações, elas ficam dispersas em anotações informais, impossibilitando uma tomada de decisão rápida.
+* **Redução no LTV da clínica:** A ausência de engajamento contínuo diminui a retenção do cliente e consultas preventivas.
+
+### A Solução PetTrack
+Desenvolvido em alinhamento com a parceira **Clyvo Vet**, o **PetTrack** transforma a jornada do pet em um ecossistema de **cuidado contínuo e inteligente**:
+1. **Telemetria de Sinais Vitais (IoT/IoB):** Uma coleira inteligente baseada em ESP32 afere a temperatura corporal e a movimentação do pet, detectando quadros precoces de febre ou prostração/sedentarismo.
+2. **Avaliação Nutricional por Imagem (Visão Computacional):** Classificação do Body Condition Score (BCS 1-9) pelo padrão internacional WSAVA através de foto enviada pelo tutor no aplicativo.
+3. **Health Report com IA Generativa (Google Gemini):** Um motor inteligente que recebe o contexto completo do animal (telemetria 24h, escore BCS, histórico clínico, medicamentos ativos e clima externo) e gera uma síntese clínica com linguagem humanizada para o tutor e insights objetivos para o veterinário.
+
+### Benefícios Diretos
+* **Para o Tutor:** Alertas preventivos antes de crises graves, linguagem acessível sobre o estado do pet e facilidade no acompanhamento diário.
+* **Para a Clínica (Clyvo Vet):** Suporte qualificado à decisão clínica, maior fidelização do tutor, redução de no-shows e estímulo a check-ups preventivos regulares.
+
+---
+
+## 🏗️ Arquitetura Geral da Solução e Fluxo de Dados
+
+A arquitetura do projeto interliga hardware simulado, corretores MQTT em nuvem, orquestração de eventos, backend corporativo e microsserviço de inteligência artificial:
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                             1. COLLAR IOT                                   │
-│                                                                             │
-│  ESP32 (Wokwi)                                                              │
-│  Temperatura (GPIO 34) + Atividade Física (GPIO 35)                         │
-│       │ MQTT TLS (Porta 8883)                                               │
-│       ▼                                                                     │
-│  HiveMQ Cloud Broker ────────────────► Node-RED Dashboard                   │
-│                                            │ OpenWeatherMap API (Clima)     │
-│                                            │ Alertas Visuais (Gauges/Charts)│
-│                                            │ HTTP POST /collar/novo         │
-│                                            ▼                                │
-│                                    Spring Boot API ──► Oracle DB            │
-└─────────────────────────────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                    2. VISÃO COMPUTACIONAL — BCS POR FOTO                    │
-│                                                                             │
-│  Portal Web / App Tutor                                                     │
-│  Upload da foto do animal                                                   │
-│       │ HTTP POST (Base64)                                                  │
-│       ▼                                                                     │
-│  Python FastAPI — POST /analyze-bcs                                         │
-│       ▼                                                                     │
-│  Classificação BCS 1-9 + Condição + Tendência + Risco                       │
-│       │ Persistência via Spring Boot                                        │
-│       ▼                                                                     │
-│  Oracle DB (TB_BCS_HISTORICO)                                               │
-└─────────────────────────────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────────────────────────────┐
-│              3. HEALTH REPORT COM IA GENERATIVA (GEMINI)                    │
-│                                                                             │
-│  Portal Web / Backend Spring Boot                                           │
-│  Consolida contexto snapshot (IoT 24h + BCS + Clínico + Clima)              │
-│       │ HTTP POST /health-report (Bearer Token 32+ chars)                   │
-│       ▼                                                                     │
-│  Python FastAPI + Google Gemini (com Structured Outputs / Pydantic)         │
-│       ▼                                                                     │
-│  Spring Boot valida contrato e persiste no Oracle (TB_HEALTH_REPORT)        │
-│       ▼                                                                     │
-│  Visualização interativa e amigável no Portal do Tutor e Painel da Clínica  │
-└─────────────────────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│                                  1. HARDWARE IOT (COLEIRA)                             │
+│                                                                                        │
+│   ESP32 (Simulação Wokwi)                                                              │
+│   ├── Sensor de Temperatura Corporal (GPIO 34 / 35.0°C - 42.0°C)                       │
+│   └── Sensor de Atividade Física (GPIO 35 / 0 - 100 passos/min)                        │
+│            │                                                                           │
+│            ▼ MQTT TLS (Porta 8883)                                                     │
+│   HiveMQ Cloud Broker (Cluster S1)                                                     │
+└────────────┬───────────────────────────────────────────────────────────────────────────┘
+             │
+             ▼ Tópicos: pettrack/collar/{id_pet}/[temperatura|atividade|alerta]
+┌────────────┴───────────────────────────────────────────────────────────────────────────┐
+│                           2. ORQUESTRAÇÃO & DASHBOARD (NODE-RED)                       │
+│                                                                                        │
+│   Node-RED Runtime (Porta 1880)                                                        │
+│   ├── Gauges e Gráficos Temporais (Node-RED Dashboard)                                 │
+│   ├── Integração com OpenWeatherMap API (Temperatura, Umidade e Condição Climática)    │
+│   └── Detecção de Regras de Borda & Webhook HTTP POST (/collar/novo)                   │
+└────────────┬───────────────────────────────────────────────────────────────────────────┘
+             │
+             ▼ HTTP REST
+┌────────────┴───────────────────────────────────────────────────────────────────────────┐
+│                           3. BACKEND CORPORATIVO (SPRING BOOT & ORACLE)                │
+│                                                                                        │
+│   Spring Boot 3.3.4 (Porta 8080)                                                       │
+│   ├── Ingestão de Telemetria e Alertas Clínicos (TB_COLLAR_LEITURA, TB_ALERTA)         │
+│   ├── Agrupamento do Snapshot Clínico do Pet (HealthReportContextAssembler)            │
+│   └── Banco de Dados Relacional Oracle Cloud (Tabelas de Negócio e Auditoria)          │
+└────────────┬───────────────────────────────────────────────────────────────────────────┘
+             │
+             ▼ Chamada Autenticada HTTP POST /health-report (Bearer Token 32+ chars)
+┌────────────┴───────────────────────────────────────────────────────────────────────────┐
+│                      4. SERVIÇOS INTELIGENTES (PYTHON FASTAPI & GEMINI)                │
+│                                                                                        │
+│   FastAPI Microservice (Porta 8000)                                                    │
+│   ├── Visão Computacional (POST /analyze-bcs): Classificação WSAVA 1-9 via GPT-4o      │
+│   └── IA Generativa (POST /health-report): Motor Google Gemini (Structured Outputs)    │
+│            │                                                                           │
+│            ├── Validação Estrita de Contrato (Pydantic HealthContext & Relatorio)      │
+│            ├── Grounding Anti-Alucinação (Obrigatoriedade de Fontes Vinculadas)        │
+│            └── Resposta Estruturada: Resumo, Nível de Atenção, Motivos, Recomendações  │
+└────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 🔌 Parte 1 — Colar IoT (ESP32 + MQTT + Node-RED)
+## 🧠 Componente de IA Generativa — Health Report Preditivo
 
-### Sensores Simulados no Wokwi
+O endpoint principal de inteligência artificial da aplicação é o `POST /health-report`. Ele foi desenhado para eliminar o isolamento de dados no prontuário do paciente, sintetizando informações multidimensionais em um relatório conciso e confiável.
 
-| Sensor | Pino | Simulação | Faixa de Operação |
-| :--- | :--- | :--- | :--- |
-| **Temperatura Corporal** | GPIO 34 | Potenciômetro analógico | 35.0°C a 42.0°C |
-| **Atividade Física** | GPIO 35 | Potenciômetro analógico | 0 a 100 passos/minuto |
+### 1. Abordagem de IA Adotada e Justificativa Técnica
+* **Modelo Utilizado:** **Google Gemini** (suporte aos modelos `gemini-1.5-flash`, `gemini-2.0-flash` ou superiores, configurável via variável de ambiente `HEALTH_REPORT_MODEL`).
+* **Motivo da Escolha:** Alta velocidade de resposta, janela de contexto eficiente e suporte de primeira classe ao recurso nativo de **Structured Outputs** (`generationConfig.responseSchema`), garantindo que o modelo produza exatamente o JSON solicitado sem alucinações de formato ou tags indesejadas.
+* **Modo Mock Integrado:** Permite a execução da suíte de testes de integração e validação de pipeline em ambientes offline ou sem consumo de cotas de API externa, respondendo de forma determinística com a flag `simulado: true`.
 
-### Tópicos MQTT no HiveMQ Cloud
-* `pettrack/collar/{id_pet}/temperatura`: `{"id_pet":1,"sensor":"temperatura","valor":38.5,"unidade":"C"}`
-* `pettrack/collar/{id_pet}/atividade`: `{"id_pet":1,"sensor":"atividade","valor":72,"unidade":"passos/min"}`
-* `pettrack/collar/{id_pet}/alerta`: `{"tipo":"FEBRE","valor":40.1}`
+### 2. Estratégia de Grounding e Prevenção de Alucinações
+* **Isolamento de Instruções:** Todo o conteúdo recebido no JSON de contexto é marcado como dado externo e não-confiável dentro do *System Prompt*. Comandos maliciosos em campos de texto livre (ex.: nome do animal ou observações clínicas) são desarmados.
+* **Rastreabilidade Obrigatória de Fontes:** Cada justificativa gerada pelo modelo no bloco `motivos` deve conter o campo `fontes`, obrigatoriamente referenciando pelo menos uma das seções enviadas: `["pet", "iotRecente", "bcs", "historico", "clima"]`.
+* **Sem Suposições Imateriais:** Se o status do clima for diferente de `DISPONIVEL`, o modelo é impedido de utilizar dados meteorológicos para justificar sintomas. Se faltarem dados clínicos mínimos, o nível de atenção é fixado como `INDETERMINADO`.
+* **Proibição de Conduta Médica Direta:** O sistema não prescreve antibióticos, não altera dosagens de medicamentos e inclui obrigatoriamente em todas as respostas a cláusula de limitação legal: *"Relatório de apoio ao acompanhamento; não substitui avaliação veterinária."*
 
-### Regras de Negócio e Disparo de Alertas
-* **Febre:** Se temperatura > 39.5°C $\rightarrow$ Dispara alerta `FEBRE`, publica no tópico MQTT e salva alerta clínico no banco.
-* **Sedentarismo Crônico:** Se atividade < 20 passos/min por 3 leituras consecutivas $\rightarrow$ Dispara alerta `SEDENTARISMO`.
-* **Faixa Normal:** Temperatura entre 37.5°C e 39.2°C e atividade regular $\rightarrow$ Registro de telemetria histórica e recálculo do Health Score.
+### 3. Exemplo de Requisição ao Endpoint (`POST /health-report`)
+```http
+POST /health-report HTTP/1.1
+Host: 127.0.0.1:8000
+Authorization: Bearer <HEALTH_REPORT_SERVICE_TOKEN_MIN_32_CHARS>
+Content-Type: application/json
 
----
-
-## 📸 Parte 2 — Visão Computacional: Body Condition Score (BCS)
-
-O **Body Condition Score (BCS)** é o padrão internacional da *World Small Animal Veterinary Association (WSAVA)* para avaliar a silhueta e adiposidade de cães e gatos em uma escala de 1 a 9:
-
-| Escore BCS | Condição Corporal | Classificação de Risco |
-| :---: | :--- | :--- |
-| **1 - 2** | Muito Abaixo do Peso / Caquético | Desnutrição severa |
-| **3 - 4** | Abaixo do Ideal | Déficit calórico |
-| **5** | **Ideal / Saudável** | Condição ótima de saúde |
-| **6 - 7** | Acima do Ideal / Sobrepeso | Risco de sobrecarga articular |
-| **8 - 9** | Obeso | Alto risco para cardiopatias e diabetes |
-
-### Endpoint de Análise (`POST /analyze-bcs`)
-Recebe a imagem do animal em base64 com metadados (espécie, raça) e retorna o escore classificado, condição, recomendação nutricional e risco associado, gravando o histórico para posterior correlação no Health Report.
-
----
-
-## 🧠 Parte 3 — Health Report Consolidado com IA Generativa (`POST /health-report`)
-
-### 1. Papel da IA no Negócio (Clyvo Vet)
-O Health Report resolve a sobrecarga cognitiva do tutor e do veterinário:
-* Em vez de analisar múltiplos gráficos desconectados (leituras do colar, vacinas vencidas, anotações de consultas e peso), a IA Generativa analisa o **contexto clínico unificado**.
-* Produz um resumo objetivo, nível de atenção classificado (`BAIXO`, `MODERADO`, `ALTO`, `INDETERMINADO`), motivos fundamentados exclusivamente nos dados reais fornecidos, recomendações e limitações explícitas.
-
-### 2. Contrato de Entrada: Snapshot de Contexto (`HealthContext`)
-O backend Spring Boot autentica o solicitante, monta o snapshot no servidor e envia um JSON estruturado contendo:
-* **`pet`:** Identificação, nome, espécie, raça, idade e sexo.
-* **`iotRecente`:** Leituras de temperatura corporal e atividade das últimas 24h com média, máxima, mínima e alertas disparados.
-* **`bcs`:** Último escore corporal registrado, data da análise e tendência (subindo/estável/descendo).
-* **`historico`:** Consultas clínicas recentes, diagnósticos, medicações em uso, taxa de adesão medicamentosa e vacinas.
-* **`clima`:** Temperatura, umidade e condição meteorológica local obtidas via OpenWeatherMap.
-
-### 3. Medidas de Segurança e Robustez da IA
-* **Proteção contra Prompt Injection:** O System Prompt isola estritamente as instruções do modelo dos dados do JSON, tratando todo o conteúdo recebido como dados não-confiáveis.
-* **Structured Outputs Estrito:** Resposta formatada via schema Pydantic (`resumo`, `nivelAtencao`, `motivos` com lista de `fontes`, `recomendacoes`, `limitacoes`), impedindo saídas com alucinações de formato ou HTML.
-* **Autenticação Segura entre Serviços:** Comunicação Java $\leftrightarrow$ Python protegida por token Bearer com no mínimo 32 caracteres criptográficos (`HEALTH_REPORT_SERVICE_TOKEN`).
-* **Proteção de Recursos:** Semáforo de controle de concorrência (`BoundedSemaphore(4)`) e limite máximo de corpo de requisição (256 KB).
-* **Identificação de Simulação:** Modo mock explicitamente sinalizado (`simulado=true`, `provedor=mock`), nunca servindo como fallback silencioso para erros de IA.
-
----
-
-## 🚀 Como Executar o Módulo
-
-### 1. Colar Inteligente no Wokwi (ESP32)
-1. Acesse o [Wokwi](https://wokwi.com) e crie um projeto com placa ESP32.
-2. Copie os arquivos da pasta `project-esp32/`: `sketch.ino` e `diagram.json`.
-3. Inicie a simulação (Play). O monitor serial exibirá a conexão WiFi (`Wokwi-GUEST`) e a conexão TLS com o HiveMQ Cloud.
-4. Ajuste os potenciômetros de temperatura e atividade física para gerar telemetria e simular alertas de febre e sedentarismo.
-
-### 2. Dashboard no Node-RED
-1. Instale o Node-RED e a biblioteca de dashboard:
-   ```bash
-   npm install -g node-red
-   cd ~/.node-red && npm install node-red-dashboard
-   ```
-2. Inicie o Node-RED executando: `node-red`.
-3. Acesse `http://localhost:1880`, vá no menu superior direito $\rightarrow$ **Import** e selecione o arquivo `flows.json`.
-4. Clique em **Deploy**.
-5. Acesse a interface visual do dashboard em: `http://localhost:1880/ui`.
-
-### 3. API Python FastAPI (BCS & Health Report)
-
-#### No macOS / Linux:
-```bash
-cd py
-# 1. Criação do ambiente virtual (se ainda não existir):
-python3 -m venv .venv
-source .venv/bin/activate
-
-# 2. Instalação das dependências:
-pip install -r requirements-dev.txt
-
-# 3. Inicialização da API FastAPI:
-uvicorn main:app --host 127.0.0.1 --port 8000 --reload
+{
+  "versao": "1.0",
+  "geradoEm": "2026-11-03T20:30:00Z",
+  "fusoHorario": "America/Sao_Paulo",
+  "pet": {
+    "id": 1,
+    "nome": "Pipoca",
+    "especie": "Canina",
+    "raca": "Golden Retriever",
+    "idadeAnos": 4.5,
+    "pesoKg": 31.2
+  },
+  "periodoIot": {
+    "inicioInclusivo": "2026-11-02T20:30:00",
+    "fimExclusivo": "2026-11-03T20:30:00"
+  },
+  "iotRecente": {
+    "totalLeituras": 144,
+    "temperaturasValidas": 144,
+    "atividadesValidas": 144,
+    "temperaturaMedia": 38.6,
+    "temperaturaMaxima": 39.9,
+    "atividadeMedia": 18.2,
+    "ultimaLeitura": "2026-11-03T20:25:00",
+    "alertas": [
+      {
+        "id": 101,
+        "tipo": "FEBRE",
+        "descricao": "Pico térmico detectado na leitura",
+        "valorReferencia": 39.9,
+        "resolvido": "N",
+        "data": "2026-11-03T18:15:00"
+      }
+    ]
+  },
+  "bcs": {
+    "ultima": { "id": 12, "score": 7, "observacao": "Sobrepeso abdominal moderado", "data": "2026-10-25T10:00:00" },
+    "anterior": { "id": 8, "score": 6, "observacao": "Leve aumento de massa adiposa", "data": "2026-09-15T11:00:00" },
+    "tendencia": "SUBINDO"
+  },
+  "historico": {
+    "inicioEventos": "2026-08-01",
+    "ultimaConsulta": "2026-09-15T11:00:00",
+    "eventosRecentes": [
+      { "id": 1, "tipo": "CONSULTA", "data": "2026-09-15T11:00:00", "diagnostico": "Acompanhamento de rotina", "observacao": "Recomendada dieta balanceada" }
+    ],
+    "medicamentosAtivos": [],
+    "limiteVacinas": "2026-12-31",
+    "vacinasVencidasOuVencendo": []
+  },
+  "clima": {
+    "status": "DISPONIVEL",
+    "fonte": "OpenWeatherMap",
+    "localidade": "São Paulo, BR",
+    "observadoEm": "2026-11-03T20:00:00Z",
+    "temperaturaCelsius": 29.5,
+    "umidadePercentual": 68.0,
+    "condicao": "Nublado"
+  },
+  "avisos": []
+}
 ```
 
-#### No Windows PowerShell:
+### 4. Exemplo de Resposta Estruturada da IA
+```json
+{
+  "idGeracao": "7a3e5c9b-6b21-4f18-b8ce-32b0d3bf492a",
+  "idPet": 1,
+  "geradoEm": "2026-11-03T20:30:02.145821+00:00",
+  "contextoGeradoEm": "2026-11-03T20:30:00+00:00",
+  "provedor": "gemini",
+  "modelo": "gemini-2.0-flash",
+  "versaoPrompt": "health-report-v1",
+  "simulado": false,
+  "persistido": false,
+  "relatorio": {
+    "resumo": "Pipoca apresentou pico febril de 39.9°C nas últimas 24 horas associado a queda no nível de atividade física média (18.2 passos/min), com escore corporal em curva ascendente (BCS 7).",
+    "nivelAtencao": "ALTO",
+    "motivos": [
+      {
+        "descricao": "Registro de alerta ativo de febre com temperatura máxima atingindo 39.9°C.",
+        "fontes": ["iotRecente"]
+      },
+      {
+        "descricao": "Atividade física reduzida em comparação aos padrões regulares da raça.",
+        "fontes": ["pet", "iotRecente"]
+      },
+      {
+        "descricao": "Escore de condição corporal atingiu grau 7 com tendência de subida em relação à avaliação anterior.",
+        "fontes": ["bcs"]
+      }
+    ],
+    "recomendacoes": [
+      "Agendar avaliação clínica presencial na Clyvo Vet para investigar a etiologia do pico febril.",
+      "Monitorar a ingestão de água e manter o animal em repouso térmico enquanto o quadro persistir.",
+      "Discutir com o médico veterinário o ajuste da ingestão calórica para controle do sobrepeso."
+    ],
+    "limitacoes": [
+      "Relatorio de apoio ao acompanhamento; nao substitui avaliacao veterinaria."
+    ]
+  }
+}
+```
+
+---
+
+## 📸 Componente de Visão Computacional — Análise BCS por Imagem
+
+O **Body Condition Score (BCS)** é o índice preconizado pela *World Small Animal Veterinary Association (WSAVA)* para mensurar a composição corporal e adiposidade em cães e gatos em uma escala de 1 a 9:
+
+| Escore BCS | Condição Corporal | Características Anatômicas | Conduta Sugerida |
+| :---: | :--- | :--- | :--- |
+| **1 - 2** | Caquético / Muito Magro | Costelas, coluna e ossos pélvicos visíveis sem cobertura adiposa. | Investigação clínica urgente de desnutrição. |
+| **3 - 4** | Abaixo do Ideal | Costelas facilmente palpáveis, cintura acentuada. | Correção calórica orientada por veterinário. |
+| **5** | **Ideal / Saudável** | **Silhueta equilibrada, costelas palpáveis com leve manto adiposo.** | **Manutenção da dieta e rotina de exercícios.** |
+| **6 - 7** | Acima do Ideal / Sobrepeso | Cintura pouco definida, camada evidente de gordura sobre o dorso. | Manejo preventivo para proteção osteoarticular. |
+| **8 - 9** | Obeso | Abdômen distendido, depósitos maciços de gordura e ausência de cintura. | Intervenção dietética e exames metabólicos. |
+
+### Funcionamento do Endpoint (`POST /analyze-bcs`)
+* O cliente web ou mobile realiza o upload da fotografia do pet codificada em **Base64**.
+* O serviço encaminha a imagem com prompt veterinário especialista para o modelo de visão computacional.
+* O retorno classifica o escore, a condição, a justificativa e o risco associado.
+* O resultado é automaticamente enviado via requisição interna para a API corporativa Spring Boot (`POST /bcs/novo`), que persiste o registro na tabela `TB_BCS_HISTORICO` do banco Oracle.
+* Possui também rota de demonstração rápida: `POST /analyze-bcs/mock`.
+
+---
+
+## 🔌 Módulo IoT — Colar Inteligente (ESP32 + MQTT + HiveMQ Cloud)
+
+O colar inteligente é o dispositivo de borda responsável pela coleta e emissão contínua de telemetria dos sinais vitais do animal.
+
+### Configuração de Hardware e Sensores (Simulado no Wokwi)
+* **Placa:** ESP32 DevKit v1.
+* **Sensor 1 (Temperatura Corporal):** Potenciômetro ligado ao pino analógico **GPIO 34**, simulando a faixa operacional de **35.0°C a 42.0°C**.
+* **Sensor 2 (Atividade Física / Movimentação):** Potenciômetro ligado ao pino analógico **GPIO 35**, simulando de **0 a 100 passos/minuto**.
+
+### Comunicação Segura via MQTT TLS
+* **Broker:** HiveMQ Cloud Cluster.
+* **Porta:** 8883 (Comunicação criptografada com `WiFiClientSecure`).
+* **Autenticação:** Usuário e senha dedicados no cluster.
+* **Tópicos Publicados:**
+  * `pettrack/collar/{id_pet}/temperatura`: Telemetria térmica periódica.
+  * `pettrack/collar/{id_pet}/atividade`: Nível de movimentação periódica.
+  * `pettrack/collar/{id_pet}/alerta`: Alertas de evento clínico anômalo.
+
+### Regras de Borda Implementadas no Firmware (`sketch.ino`)
+* **Detecção de Febre:** Se a temperatura lida for superior a **39.5°C**, o ESP32 emite imediatamente uma mensagem no tópico de alerta com o payload `{"id_pet": 1, "tipo": "FEBRE", "valor": 40.1, "descricao": "Pico termico elevado"}`.
+* **Detecção de Sedentarismo Crônico:** Caso a atividade física permaneça inferior a **20 passos/minuto** por 3 ciclos consecutivos de amostragem, o dispositivo emite um alerta `SEDENTARISMO`.
+* **Operação Normal:** Quando os parâmetros permanecem estáveis (temperatura entre 37.5°C e 39.2°C), as leituras alimentam o histórico analítico.
+
+---
+
+## 📊 Dashboard Analítico no Node-RED
+
+O fluxo configurado no Node-RED (`flows.json`) orquestra as mensagens do broker MQTT e oferece uma central de comando em tempo real:
+1. **Subscrição MQTT:** Consome os tópicos do HiveMQ Cloud com reconexão automática e autenticação segura.
+2. **Visualização por Gauges:** 
+   * Mostrador circular de temperatura com faixas coloridas (Azul: Hipotermia; Verde: Faixa Saudável; Vermelho: Estado Febril).
+   * Mostrador de passos por minuto com alerta visual de letargia.
+3. **Contexto Meteorológico:** Consulta periódica à API do OpenWeatherMap para cruzar a temperatura corporal do animal com o clima da região.
+4. **Histórico Gráfico:** Gráficos de linha temporais alimentados em tempo real a cada leitura recebida.
+5. **Integração de Backend:** Nó HTTP Request que dispara `POST /collar/novo` para a API Spring Boot com o payload normalizado.
+
+---
+
+## 📋 Contratos de Dados e Estrutura dos Modelos Pydantic
+
+O módulo Python adota tipagem rigorosa através do **Pydantic v2**, garantindo validações de tipos, limites e integridade antes de qualquer processamento:
+
+```
+HealthContext (Contrato Raiz)
+├── pet: Perfil
+│   ├── id (int, gt=0)
+│   ├── nome, especie (str)
+│   ├── raca (str opcional)
+│   ├── idadeAnos (float >= 0)
+│   └── pesoKg (float > 0)
+├── periodoIot: Periodo
+│   ├── inicioInclusivo (datetime)
+│   └── fimExclusivo (datetime > inicioInclusivo)
+├── iotRecente: Iot
+│   ├── totalLeituras, temperaturasValidas, atividadesValidas (int >= 0)
+│   ├── temperaturaMedia, temperaturaMaxima, atividadeMedia (float)
+│   ├── ultimaLeitura (datetime)
+│   └── alertas: list[Alerta]
+├── bcs: Bcs
+│   ├── ultima: Avaliacao (score 1-9)
+│   ├── anterior: Avaliacao (score 1-9)
+│   └── tendencia: ("SUBINDO" | "DESCENDO" | "ESTAVEL" | "SEM_HISTORICO_SUFICIENTE")
+├── historico: Historico
+│   ├── eventosRecentes: list[Evento]
+│   ├── medicamentosAtivos: list[Medicamento]
+│   └── vacinasVencidasOuVencendo: list[Vacina]
+└── clima: Clima
+    ├── status: ("DISPONIVEL" | "NAO_CONFIGURADO" | "FALHA_PROVEDOR" | ...)
+    ├── temperaturaCelsius, umidadePercentual (float)
+    └── condicao (str)
+```
+
+---
+
+## 🛡️ Segurança, Resiliência e Mitigação de Falhas
+
+* **Autenticação Inter-serviços:** O endpoint `/health-report` exige cabeçalho `Authorization: Bearer <token>`, sendo que a aplicação recusa tokens com comprimento inferior a 32 caracteres criptográficos (`HEALTH_REPORT_SERVICE_TOKEN`).
+* **Proteção de Recursos e Concorrência:** O serviço limita o corpo da requisição a **256 KB** (`MAX_BODY_BYTES`) e controla a quantidade de requisições simultâneas com `BoundedSemaphore(4)`. Requisições adicionais recebem resposta `429 Too Many Requests` de forma controlada.
+* **Isolamento de Falhas do Provedor de IA:** Falhas na API externa do Google Gemini (ex.: 429 quota excedida, 503 indisponibilidade ou 504 timeout) são mapeadas para códigos de erro de domínio (`LIMITE_PROVEDOR`, `IA_INDISPONIVEL`, `TEMPO_IA_ESGOTADO`), evitando travamentos no backend principal e vazamento de chaves privadas em logs.
+
+---
+
+## 🚀 Instruções de Instalação e Execução
+
+### Pré-requisitos
+* **Python:** 3.10 ou superior.
+* **Node.js:** Versão LTS (para o Node-RED).
+* **Navegador Web:** Para o Wokwi e interfaces visuais.
+
+---
+
+### 1. Inicializando a API Python FastAPI (Health Report & BCS)
+
+#### Passo A: Configuração do Ambiente e Dependências
+Abra o terminal na pasta `py/` do projeto:
+
 ```powershell
+# No Windows PowerShell:
 cd py
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements-dev.txt
+```
+
+*(No Linux ou macOS: substitua a ativação por `source .venv/bin/activate`)*
+
+#### Passo B: Configuração das Variáveis de Ambiente
+Crie ou edite o arquivo `py/.env` com base no `py/.env.example`:
+
+```ini
+HEALTH_REPORT_SERVICE_TOKEN=token_secreto_super_seguro_com_mais_de_32_caracteres_12345
+HEALTH_REPORT_MODE=gemini
+HEALTH_REPORT_MODEL=gemini-2.0-flash
+GEMINI_API_KEY=sua_chave_da_api_google_gemini
+OPENAI_API_KEY=sua_chave_opcional_para_visao_computacional
+SPRING_BOOT_URL=http://localhost:8080
+```
+
+> **Dica:** Para rodar sem chave externa de IA, basta definir `HEALTH_REPORT_MODE=mock`.
+
+#### Passo C: Inicializando o Servidor Uvicorn
+```powershell
 uvicorn main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
-A documentação interativa Swagger da API estará disponível em: **`http://127.0.0.1:8000/docs`**.
+* **Health Check da API:** `http://127.0.0.1:8000/health`
+* **Swagger Interativo (OpenAPI):** `http://127.0.0.1:8000/docs`
 
 ---
 
-## 🧪 Testes Automatizados (Pytest)
+### 2. Executando o Colar Inteligente no Wokwi (ESP32)
+1. Acesse o ambiente online do [Wokwi ESP32](https://wokwi.com/projects/new/esp32).
+2. Substitua o conteúdo do arquivo `sketch.ino` pelo código presente em `project-esp32/sketch.ino`.
+3. Substitua o `diagram.json` pelo arquivo em `project-esp32/diagram.json`.
+4. Adicione as bibliotecas no painel `libraries.txt`:
+   * `PubSubClient`
+   * `ArduinoJson`
+5. Pressione **Play** para iniciar a simulação.
+6. Acompanhe no console serial a conexão ao WiFi `Wokwi-GUEST` e a autenticação no broker HiveMQ Cloud.
+7. Ajuste os potenciômetros de temperatura e atividade física para simular diferentes condições e alertas em tempo real.
 
-A suíte de testes unitários e de integração valida exaustivamente os contratos de entrada, resposta da IA, proteção de endpoints e tratamento de falhas.
+---
 
-Execute os testes com:
-```bash
-# Dentro da pasta py:
+### 3. Executando o Dashboard no Node-RED
+1. Caso não possua o Node-RED e o dashboard instalados:
+   ```bash
+   npm install -g node-red
+   cd ~/.node-red && npm install node-red-dashboard
+   ```
+2. Inicie o serviço executando no terminal:
+   ```bash
+   node-red
+   ```
+3. Abra o navegador em `http://localhost:1880`.
+4. No canto superior direito, acesse o menu **Import** e selecione o arquivo `flows.json` da raiz deste repositório.
+5. Clique no botão vermelho **Deploy**.
+6. Acesse a interface visual do painel em: `http://localhost:1880/ui`.
+
+---
+
+## 🧪 Testes Automatizados (Pytest) e Validações
+
+O projeto inclui uma bateria completa de testes automatizados unitários e de integração que asseguram a integridade dos contratos e a robustez dos componentes de IA.
+
+Para executar todos os testes, acesse a pasta `py/` e rode:
+
+```powershell
+# Com o ambiente virtual ativado:
 pytest -v
 ```
 
-**Cobertura validada (35 testes aprovados):**
-* Validação do contrato estruturado Pydantic (`HealthContext` e `Relatorio`).
-* Autenticação por token Bearer (rejeição de tokens ausentes ou com menos de 32 caracteres).
-* Validação de fontes obrigatórias para os motivos (`pet`, `iotRecente`, `bcs`, `historico`, `clima`).
-* Rejeição de clima quando o status não for `DISPONIVEL`.
-* Proteção contra vazamento de erros de provedores externos (401, 429, 500, 503, 504).
-* Limite de concorrência e limite de tamanho de payload (256 KB).
-* Preservação de avisos de limitações médicas obrigatórias.
+### Resultados Obtidos
+```text
+============================= test session starts =============================
+platform win32 -- Python 3.12.14, pytest-9.2.0, pluggy-1.7.0
+rootdir: C:\...\DISRUPTIVE-ARCHITECTURES-IOT-IOB-GENERATIVE-IA\py
+configfile: pytest.ini
+testpaths: tests
+collected 35 items
+
+tests\test_health_report.py ...................................          [100%]
+
+======================== 35 passed, 1 warning in 3.15s ========================
+```
+
+### Cenários Cobertos pelos Testes
+* ✅ **Validação Estrita de Contrato:** Rejeição de payloads com campos ausentes, tipos incorretos ou intervalos temporais inconsistentes (`inicioInclusivo >= fimExclusivo`).
+* ✅ **Autenticação:** Rejeição imediata (HTTP 401 e 503) para requisições sem token Bearer ou com token menor que 32 caracteres.
+* ✅ **Sanitização de Fontes:** Verificação de que o modelo só cita `clima` quando o status for `DISPONIVEL`.
+* ✅ **Controle de Concorrência e Sobrecarga:** Validação de bloqueio com HTTP 429 após esgotamento das vagas do semáforo e rejeição com HTTP 413 de corpos maiores que 256 KB.
+* ✅ **Tratamento de Exceções do Provedor:** Mapeamento de erros 401, 429, 500, 502, 503 e 504 sem vazamento de detalhes sensíveis da infraestrutura.
+* ✅ **Garantia de Cláusula Médica:** Validação de que a limitação legal sempre acompanha o relatório emitido.
 
 ---
 
-## 📊 Dashboard Node-RED — Recursos Implementados
+## 📁 Estrutura do Repositório
 
-* **Gauge de Temperatura Corporal:** Faixa de 35°C a 42°C, com sinalização visual de alerta para valores $> 39.5°C$.
-* **Gauge de Atividade Física:** Faixa de 0 a 100 passos/min, com sinalização de sedentarismo para valores $< 20$.
-* **Widget Meteorológico:** Integração com OpenWeatherMap exibindo temperatura, umidade e condição climática de São Paulo.
-* **Histórico Gráfico:** Gráficos de linha temporais com as últimas medições recebidas via MQTT.
-* **Painel de Eventos e Alertas:** Tabela em tempo real com alertas de `FEBRE`, `SEDENTARISMO` e `NORMAL` com timestamp.
+```text
+DISRUPTIVE-ARCHITECTURES-IOT-IOB-GENERATIVE-IA/
+│
+├── flows.json                          # Fluxos exportados e configurados do Node-RED
+├── entrega.txt                         # Metadados e links para submissão oficial
+├── README.md                           # Documentação técnica completa consolidada
+│
+├── project-esp32/                      # Projeto de simulação de hardware IoT no Wokwi
+│   ├── diagram.json                    # Diagrama de conexões e componentes Wokwi
+│   ├── libraries.txt                   # Dependências do firmware (PubSubClient, ArduinoJson)
+│   ├── sketch.ino                      # Firmware C++ do ESP32 com regras de borda
+│   └── wokwi-project.txt               # Identificador do projeto no Wokwi
+│
+└── py/                                 # Microsserviço Python de IA & Visão Computacional
+    ├── .env.example                    # Modelo de variáveis de ambiente do serviço
+    ├── health_context_models.py        # Modelos Pydantic v2 do contrato do Health Report
+    ├── health_report.py                # Integração com Google Gemini e regras de segurança
+    ├── main.py                         # Aplicação FastAPI, rotas de BCS e ciclo de vida
+    ├── pytest.ini                      # Configuração do executor de testes Pytest
+    ├── requirements.txt                # Dependências principais de produção
+    ├── requirements-dev.txt            # Dependências de desenvolvimento e testes
+    │
+    ├── scripts/                        # Scripts utilitários de suporte à integração
+    │   ├── iniciar_java.py             # Validador de ambiente e inicialização do Java
+    │   └── validar_health_report_real.py # Teste de integração de ponta a ponta (Java + Gemini)
+    │
+    └── tests/                          # Suíte de testes automatizados
+        ├── fixtures/                   # Payloads JSON de exemplo para testes
+        │   └── context.json            # Snapshot de contexto clínico de teste
+        └── test_health_report.py       # 35 testes automatizados cobrindo todas as regras
+```
 
 ---
 
-## 📦 Artefatos para Entrega no Portal FIAP (.zip)
+## 🏆 Checklist de Atendimento aos Critérios da Sprint 4
 
-O arquivo `.zip` para envio no portal FIAP deve conter o arquivo `entrega.txt` com:
-1. **Link do vídeo pitch publicado no YouTube (modo não listado):** `https://youtu.be/C591dfs1aLc`
-2. **Link do repositório no GitHub:** `https://github.com/Challenge-PetTrack/DISRUPTIVE-ARCHITECTURES-IOT-IOB-GENERATIVE-IA.git`
+| Requisito do Manual do Challenge (FIAP) | Status | Evidência no Projeto |
+| :--- | :---: | :--- |
+| **Aplicação Técnica de Conceitos de IA (60 pts)** | **100% Concluído** | Implementação de IA Generativa com Google Gemini, uso de *Structured Outputs* estritos via Pydantic v2, grounding contra alucinações, tratamento de prompt injection e visão computacional BCS (WSAVA). |
+| **Vídeo Pitch e Demonstração Técnica (20 pts)** | **100% Concluído** | Vídeo publicado no YouTube de ~5 minutos com áudio claro, contextualização de negócio com a Clyvo Vet e demonstração funcional: **[https://youtu.be/Ahc93FSBpuU](https://youtu.be/Ahc93FSBpuU)** |
+| **Organização do Repositório e Documentação (20 pts)** | **100% Concluído** | Repositório estruturado em camadas claras, README exaustivo com guias de execução passo a passo, suíte com 35 testes automatizados no Pytest e contratos de API padronizados. |
+
+---
+
+## 📦 Artefatos para Submissão no Portal FIAP (.zip)
+
+O arquivo compactado `.zip` para submissão no portal educacional da FIAP contempla:
+1. O arquivo `entrega.txt` na raiz com:
+   * **Link do vídeo pitch publicado no YouTube (modo não listado):** [https://youtu.be/Ahc93FSBpuU](https://youtu.be/Ahc93FSBpuU)
+   * **Link do repositório no GitHub:** [https://github.com/Challenge-PetTrack/DISRUPTIVE-ARCHITECTURES-IOT-IOB-GENERATIVE-IA](https://github.com/Challenge-PetTrack/DISRUPTIVE-ARCHITECTURES-IOT-IOB-GENERATIVE-IA)
+2. Código-fonte completo e limpo do projeto, contendo os módulos de firmware ESP32, fluxo do Node-RED e a API Python de IA.
